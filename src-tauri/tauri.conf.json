@@ -14,8 +14,8 @@
       {
         "label": "main",
         "title": "Gokapi Desktop",
-        "width": 780,
-        "height": 700,
+        "width": 940,
+        "height": 720,
         "minWidth": 640,
         "minHeight": 560,
         "resizable": true,
