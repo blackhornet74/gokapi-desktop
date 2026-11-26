@@ -12,7 +12,7 @@ use crate::zip;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Bootstrap {
+pub struct Bootstrap {
     settings: Settings,
     key_present: bool,
     key_source: Option<&'static str>,
@@ -22,13 +22,13 @@ struct Bootstrap {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct UploadResult {
+pub struct UploadResult {
     entry: HistoryEntry,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct PickedImage {
+pub struct PickedImage {
     path: String,
     name: String,
 }
