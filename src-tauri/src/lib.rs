@@ -63,7 +63,9 @@ pub fn run() {
                     let _ = app.emit("tray-upload", ());
                 }
                 "quit" => {
-                    app.state::<AppState>().quitting.store(true, Ordering::SeqCst);
+                    app.state::<AppState>()
+                        .quitting
+                        .store(true, Ordering::SeqCst);
                     app.exit(0);
                 }
                 _ => {}

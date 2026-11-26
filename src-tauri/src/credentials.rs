@@ -93,10 +93,3 @@ pub fn save_file(state: &AppState, key: &str) -> std::io::Result<()> {
 pub fn delete_file(state: &AppState) {
     let _ = fs::remove_file(file_path(state));
 }
-
-pub fn delete_all(state: &AppState) {
-    if let Ok(entry) = keyring_entry() {
-        let _ = entry.delete_credential();
-    }
-    delete_file(state);
-}

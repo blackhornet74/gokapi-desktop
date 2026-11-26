@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 use tokio_util::sync::CancellationToken;
 
 use crate::credentials;
@@ -82,7 +82,10 @@ pub fn save_settings(state: State<'_, AppState>, settings: Settings) -> Result<(
 }
 
 #[tauri::command]
-pub async fn verify_server(server_url: String, api_key: String) -> Result<gokapi::ServerInfo, CommandError> {
+pub async fn verify_server(
+    server_url: String,
+    api_key: String,
+) -> Result<gokapi::ServerInfo, CommandError> {
     let server = gokapi::normalize_server(&server_url)?;
     let key = api_key.trim();
     if key.is_empty() {
@@ -102,9 +105,10 @@ pub async fn save_api_key(
         return Err(CommandError::new("unauthorized"));
     }
     let key_for_blocking = key.clone();
-    let saved = tauri::async_runtime::spawn_blocking(move || credentials::save_keyring(&key_for_blocking))
-        .await
-        .map_err(|error| CommandError::io(error.to_string()))?;
+    let saved =
+        tauri::async_runtime::spawn_blocking(move || credentials::save_keyring(&key_for_blocking))
+            .await
+            .map_err(|error| CommandError::io(error.to_string()))?;
     match saved {
         Ok(()) => {
             credentials::delete_file(&state);
@@ -132,7 +136,11 @@ pub async fn upload_file(
     let key = credentials::load(&state).ok_or_else(|| CommandError::new("unauthorized"))?;
 
     let token = CancellationToken::new();
-    state.jobs.lock().unwrap().insert(job.id.clone(), token.clone());
+    state
+        .jobs
+        .lock()
+        .unwrap()
+        .insert(job.id.clone(), token.clone());
 
     let mut cleanup: Vec<PathBuf> = Vec::new();
     let is_folder = job.is_folder || std::path::Path::new(&job.path).is_dir();
@@ -145,12 +153,10 @@ pub async fn upload_file(
                 .map(|name| name.to_string())
                 .ok_or_else(|| CommandError::new("unsupported"))?;
             let zip_token = token.clone();
-            let zip_base = base.clone();
-            let zip_path = tauri::async_runtime::spawn_blocking(move || {
-                zip::zip_folder(&source, &zip_token, &zip_base)
-            })
-            .await
-            .map_err(|error| CommandError::io(error.to_string()))??;
+            let zip_path =
+                tauri::async_runtime::spawn_blocking(move || zip::zip_folder(&source, &zip_token))
+                    .await
+                    .map_err(|error| CommandError::io(error.to_string()))??;
             (zip_path, format!("{base}.zip"))
         } else {
             (PathBuf::from(&job.path), job.name.clone())
@@ -162,13 +168,15 @@ pub async fn upload_file(
 
         gokapi::upload_path(
             &app,
-            &server,
-            &key,
-            &path,
-            &name,
-            &job.options,
-            &job.id,
-            token.clone(),
+            gokapi::UploadRequest {
+                server,
+                key,
+                path,
+                display_name: name,
+                options: job.options.clone(),
+                job_id: job.id.clone(),
+                token,
+            },
         )
         .await
     }

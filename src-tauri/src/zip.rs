@@ -1,5 +1,4 @@
 use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use tokio_util::sync::CancellationToken;
@@ -8,7 +7,10 @@ use zip::write::SimpleFileOptions;
 
 use crate::error::CommandError;
 
-fn cleanup_on_error(path: &Path, result: Result<PathBuf, CommandError>) -> Result<PathBuf, CommandError> {
+fn cleanup_on_error(
+    path: &Path,
+    result: Result<PathBuf, CommandError>,
+) -> Result<PathBuf, CommandError> {
     if result.is_err() {
         let _ = fs::remove_file(path);
     }
@@ -63,7 +65,7 @@ fn add_entry(
     Ok(())
 }
 
-pub fn zip_folder(source: &Path, token: &CancellationToken, display_name: &str) -> Result<PathBuf, CommandError> {
+pub fn zip_folder(source: &Path, token: &CancellationToken) -> Result<PathBuf, CommandError> {
     if token.is_cancelled() {
         return Err(CommandError::new("cancelled"));
     }
@@ -76,11 +78,11 @@ pub fn zip_folder(source: &Path, token: &CancellationToken, display_name: &str) 
         let file = fs::File::create(&destination)?;
         let mut zip = zip::ZipWriter::new(file);
         add_entry(&mut zip, source, source, token, options)?;
-        zip.finish().map_err(|error| CommandError::io(error.to_string()))?;
+        zip.finish()
+            .map_err(|error| CommandError::io(error.to_string()))?;
         if token.is_cancelled() {
             return Err(CommandError::new("cancelled"));
         }
-        let _ = display_name;
         Ok(destination.clone())
     })();
 
@@ -89,10 +91,4 @@ pub fn zip_folder(source: &Path, token: &CancellationToken, display_name: &str) 
 
 pub fn temp_paste_path(file_name: &str) -> PathBuf {
     std::env::temp_dir().join(file_name)
-}
-
-pub fn write_bytes(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    let mut file = fs::File::create(path)?;
-    file.write_all(bytes)?;
-    Ok(())
 }

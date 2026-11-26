@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -119,13 +119,22 @@ fn map_status(status: reqwest::StatusCode, body: &str) -> CommandError {
 }
 
 fn map_reqwest(error: reqwest::Error) -> CommandError {
-    if error.is_timeout() {
-        CommandError::with_detail("timeout", error.to_string())
-    } else if error.is_connect() || error.is_request() || error.is_body() {
-        CommandError::with_detail("network", error.to_string())
+    let code = if error.is_timeout() {
+        "timeout"
     } else {
-        CommandError::with_detail("network", error.to_string())
-    }
+        "network"
+    };
+    CommandError::with_detail(code, error.to_string())
+}
+
+pub struct UploadRequest {
+    pub server: Url,
+    pub key: String,
+    pub path: PathBuf,
+    pub display_name: String,
+    pub options: UploadOptions,
+    pub job_id: String,
+    pub token: CancellationToken,
 }
 
 fn same_origin(base: &Url, candidate: &Url) -> bool {
@@ -160,22 +169,25 @@ pub async fn probe(server: &Url, key: &str) -> Result<ServerInfo, CommandError> 
 
 pub async fn upload_path(
     app: &AppHandle,
-    server: &Url,
-    key: &str,
-    path: &Path,
-    display_name: &str,
-    options: &UploadOptions,
-    job_id: &str,
-    token: CancellationToken,
+    request: UploadRequest,
 ) -> Result<HistoryEntry, CommandError> {
-    let info = probe(server, key).await?;
+    let UploadRequest {
+        server,
+        key,
+        path,
+        display_name,
+        options,
+        job_id,
+        token,
+    } = request;
+    let info = probe(&server, &key).await?;
     if info.e2e {
         return Err(CommandError::new("e2e_required"));
     }
 
-    let metadata = tokio::fs::metadata(path).await.map_err(|error| {
-        CommandError::io(format!("{}: {error}", path.display()))
-    })?;
+    let metadata = tokio::fs::metadata(&path)
+        .await
+        .map_err(|error| CommandError::io(format!("{}: {error}", path.display())))?;
     let total = metadata.len();
     let limit = info.max_file_size_mb.max(0) as u64 * 1024 * 1024;
     if limit > 0 && total > limit {
@@ -188,17 +200,20 @@ pub async fn upload_path(
     let endpoint = server
         .join("api/files/add")
         .map_err(|_| CommandError::new("invalid_url"))?;
-    let file = tokio::fs::File::open(path)
+    let file = tokio::fs::File::open(&path)
         .await
         .map_err(|error| CommandError::io(format!("{}: {error}", path.display())))?;
 
     let sent = Arc::new(AtomicU64::new(0));
-    let last_emit = Arc::new(std::sync::Mutex::new(Instant::now() - Duration::from_secs(1)));
+    let last_emit = Arc::new(std::sync::Mutex::new(
+        Instant::now() - Duration::from_secs(1),
+    ));
     let progress_app = app.clone();
-    let progress_id = job_id.to_string();
+    let progress_id = job_id.clone();
     let stream = tokio_util::io::ReaderStream::new(file).map(move |item| {
         if let Ok(chunk) = &item {
-            let current = sent.fetch_add(chunk.len() as u64, Ordering::Relaxed) + chunk.len() as u64;
+            let current =
+                sent.fetch_add(chunk.len() as u64, Ordering::Relaxed) + chunk.len() as u64;
             let mut last = last_emit.lock().unwrap();
             if last.elapsed() >= Duration::from_millis(120) || current >= total {
                 *last = Instant::now();
@@ -216,7 +231,7 @@ pub async fn upload_path(
     });
 
     let part = Part::stream_with_length(Body::wrap_stream(stream), total)
-        .file_name(display_name.to_string())
+        .file_name(display_name.clone())
         .mime_str("application/octet-stream")
         .map_err(|error| CommandError::with_detail("network", error.to_string()))?;
     let form = Form::new()
@@ -250,9 +265,10 @@ pub async fn upload_path(
     if parsed.result != "OK" {
         return Err(CommandError::with_detail("server", body));
     }
-    let url = Url::parse(&parsed.file.url_download)
-        .map_err(|_| CommandError::with_detail("invalid_response", parsed.file.url_download.clone()))?;
-    if !same_origin(server, &url) {
+    let url = Url::parse(&parsed.file.url_download).map_err(|_| {
+        CommandError::with_detail("invalid_response", parsed.file.url_download.clone())
+    })?;
+    if !same_origin(&server, &url) {
         return Err(CommandError::with_detail(
             "invalid_response",
             "download URL points to another origin",
@@ -264,7 +280,7 @@ pub async fn upload_path(
 
     Ok(HistoryEntry {
         id: parsed.file.id,
-        name: display_name.to_string(),
+        name: display_name,
         url: url.to_string(),
         time: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
     })
@@ -296,4 +312,46 @@ pub async fn delete_file(server: &Url, key: &str, id: &str) -> Result<(), Comman
         return Err(map_status(status, &body));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalizes_host_without_trailing_slash() {
+        let url = normalize_server("https://files.example.com").unwrap();
+        assert_eq!(url.as_str(), "https://files.example.com/");
+        let nested = normalize_server("https://example.com/gokapi").unwrap();
+        assert_eq!(nested.as_str(), "https://example.com/gokapi/");
+    }
+
+    #[test]
+    fn rejects_invalid_server_urls() {
+        for value in [
+            "",
+            "files.example.com",
+            "ftp://files.example.com",
+            "https://user:secret@files.example.com",
+            "https://files.example.com/?token=1",
+            "https://files.example.com/#fragment",
+        ] {
+            assert_eq!(
+                normalize_server(value).unwrap_err().code,
+                "invalid_url",
+                "accepted {value}"
+            );
+        }
+    }
+
+    #[test]
+    fn accepts_only_same_origin_download_links() {
+        let server = normalize_server("https://files.example.com").unwrap();
+        let same = Url::parse("https://files.example.com/d?id=abc").unwrap();
+        let other_host = Url::parse("https://evil.example.net/d?id=abc").unwrap();
+        let other_port = Url::parse("https://files.example.com:8443/d?id=abc").unwrap();
+        assert!(same_origin(&server, &same));
+        assert!(!same_origin(&server, &other_host));
+        assert!(!same_origin(&server, &other_port));
+    }
 }
