@@ -20,7 +20,6 @@ export interface Bootstrap {
   keySource: "keyring" | "file" | null;
   history: HistoryEntry[];
   version: string;
-  autostart: boolean;
 }
 
 export interface ServerInfo {

@@ -29,6 +29,7 @@ export default function SettingsDialog({ boot, t, onClose, onSave }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!api.isDesktop) return;
     void isEnabled()
       .then(setAutostart)
       .catch(() => setAutostart(false));
@@ -60,7 +61,7 @@ export default function SettingsDialog({ boot, t, onClose, onSave }: Props) {
 
   return (
     <div className="overlay" role="dialog" aria-modal="true">
-      <div className="card modal">
+      <div className="modal">
         <div className="panel-head">
           <h2>{t("settings")}</h2>
           <button className="small" onClick={onClose} disabled={busy}>

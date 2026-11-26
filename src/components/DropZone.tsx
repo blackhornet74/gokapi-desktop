@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { isDesktop } from "../api";
 
 interface Props {
   title: string;
@@ -11,6 +12,7 @@ export default function DropZone({ title, hint, onDrop }: Props) {
   const [active, setActive] = useState(false);
 
   useEffect(() => {
+    if (!isDesktop) return;
     let dispose: (() => void) | undefined;
     void getCurrentWebview()
       .onDragDropEvent((event) => {
@@ -40,6 +42,9 @@ export default function DropZone({ title, hint, onDrop }: Props) {
       onDrop={(event) => event.preventDefault()}
     >
       <strong>{title}</strong>
+      <span className="drop-glyph" aria-hidden="true">
+        ↓
+      </span>
       <span className="muted small">{hint}</span>
     </div>
   );

@@ -17,8 +17,8 @@ describe("formatBytes", () => {
 
 describe("translate", () => {
   it("returns localized strings with interpolation", () => {
-    expect(translate("en", "days")).toBe("Expiry (days)");
-    expect(translate("it", "days")).toBe("Scadenza (giorni)");
+    expect(translate("en", "days")).toBe("Expiry");
+    expect(translate("it", "days")).toBe("Scadenza");
     expect(translate("en", "version", { version: "1.2.3" })).toBe("Version 1.2.3");
   });
 

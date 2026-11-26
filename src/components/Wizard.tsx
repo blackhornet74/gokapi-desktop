@@ -62,8 +62,10 @@ export default function Wizard({ initialLanguage, onFinished }: Props) {
           throw failure;
         }
       }
-      if (autostart) await enableAutostart();
-      else await disableAutostart();
+      if (api.isDesktop) {
+        if (autostart) await enableAutostart();
+        else await disableAutostart();
+      }
       await onFinished();
     } catch (failure) {
       setError(t(`errors.${api.errorCode(failure)}`));
@@ -74,7 +76,7 @@ export default function Wizard({ initialLanguage, onFinished }: Props) {
 
   return (
     <main className="center">
-      <div className="card wizard">
+      <div className="wizard">
         <div className="wizard-head">
           <div className="brand">
             <span className="brand-mark" aria-hidden="true">
@@ -83,6 +85,7 @@ export default function Wizard({ initialLanguage, onFinished }: Props) {
             <div>
               <h1>{t("wizardTitle")}</h1>
               <p className="muted small">{t("tagline")}</p>
+              <p className="step">{step} / 2</p>
             </div>
           </div>
           <select

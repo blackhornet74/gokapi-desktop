@@ -27,28 +27,30 @@ interface Props {
 const active = (item: QueueItem) => item.status === "queued" || item.status === "uploading";
 
 export default function UploadQueue({ items, t, onCancelAll, onClearFinished }: Props) {
-  if (!items.length) return null;
   const hasActive = items.some(active);
   const hasFinished = items.some((item) => !active(item));
 
   return (
-    <section className="panel">
+    <section className="ledger-panel">
       <div className="panel-head">
         <h2>{t("queueTitle")}</h2>
         <div className="row tight">
           {hasActive && (
-            <button className="small danger" onClick={onCancelAll}>
+            <button className="link small danger" onClick={onCancelAll}>
               {t("cancelAll")}
             </button>
           )}
           {hasFinished && (
-            <button className="small" onClick={onClearFinished}>
+            <button className="link small" onClick={onClearFinished}>
               {t("clearFinished")}
             </button>
           )}
         </div>
       </div>
-      <ul className="queue">
+      {items.length === 0 ? (
+        <p className="queue-empty muted small">{t("queueEmpty")}</p>
+      ) : (
+        <ul className="queue">
         {items.map((item) => {
           const percent =
             item.status === "uploading" && item.total
@@ -62,7 +64,7 @@ export default function UploadQueue({ items, t, onCancelAll, onClearFinished }: 
                 <span className="queue-name" title={item.path}>
                   {item.name}
                 </span>
-                <span className="muted small">
+                <span className="queue-status">
                   {item.status === "uploading" && item.total
                     ? t("progress", {
                         done: Math.round((item.sent / 1024 / 1024) * 10) / 10 + " MB",
@@ -80,7 +82,8 @@ export default function UploadQueue({ items, t, onCancelAll, onClearFinished }: 
             </li>
           );
         })}
-      </ul>
+        </ul>
+      )}
       {hasActive && <p className="hint">{t("cancelHint")}</p>}
     </section>
   );

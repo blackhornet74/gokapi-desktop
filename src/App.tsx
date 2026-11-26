@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import { enable as enableAutostart, disable as disableAutostart } from "@tauri-apps/plugin-autostart";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -76,6 +75,7 @@ export default function App() {
   }, [load]);
 
   useEffect(() => {
+    if (!api.isDesktop) return;
     const unlisten = listen<ProgressEvent>("upload-progress", (event) => {
       const { id, sent, total } = event.payload;
       queueRef.current = queueRef.current.map((item) =>
@@ -96,6 +96,7 @@ export default function App() {
   }, []);
 
   const notify = useCallback(async (count: number) => {
+    if (!api.isDesktop) return;
     try {
       let granted = await isPermissionGranted();
       if (!granted) granted = (await requestPermission()) === "granted";
@@ -145,7 +146,7 @@ export default function App() {
     currentRef.current = null;
     if (links.length) {
       try {
-        await writeText(links.join("\n"));
+        await api.copyText(links.join("\n"));
         showToast(t("copied") + (links.length > 1 ? ` (${links.length})` : ""));
       } catch {
         showToast(t("errors.unknown"));
@@ -178,6 +179,7 @@ export default function App() {
   const currentOptions = (): UploadOptions => ({ days, downloads, password });
 
   const pickFiles = useCallback(async () => {
+    if (!api.isDesktop) return;
     const selection = await openDialog({ multiple: true, directory: false, title: t("chooseFiles") });
     if (!selection) return;
     const paths = Array.isArray(selection) ? selection : [selection];
@@ -190,6 +192,7 @@ export default function App() {
   }, [enqueue, days, downloads, password, t]);
 
   const pickFolder = useCallback(async () => {
+    if (!api.isDesktop) return;
     const selection = await openDialog({ multiple: false, directory: true, title: t("chooseFolder") });
     if (!selection || Array.isArray(selection)) return;
     enqueue(
@@ -201,6 +204,7 @@ export default function App() {
   }, [enqueue, days, downloads, password, t]);
 
   useEffect(() => {
+    if (!api.isDesktop) return;
     const unlisten = listen("tray-upload", () => {
       void pickFiles();
     });
@@ -245,7 +249,7 @@ export default function App() {
   const copyLink = useCallback(
     async (url: string) => {
       try {
-        await writeText(url);
+        await api.copyText(url);
         showToast(t("copied"));
       } catch {
         showToast(t("errors.unknown"));
@@ -301,6 +305,7 @@ export default function App() {
   );
 
   const installUpdate = useCallback(async () => {
+    if (!api.isDesktop) return;
     const found = availableRef.current;
     if (!found) return;
     try {
@@ -314,7 +319,7 @@ export default function App() {
   }, [t]);
 
   useEffect(() => {
-    if (!boot) return;
+    if (!boot || !api.isDesktop) return;
     const timer = window.setTimeout(() => {
       void checkForUpdates(false);
     }, 2000);
@@ -338,8 +343,10 @@ export default function App() {
           }
         }
       }
-      if (autostart) await enableAutostart();
-      else await disableAutostart();
+      if (api.isDesktop) {
+        if (autostart) await enableAutostart();
+        else await disableAutostart();
+      }
       await load();
     },
     [load, t],
@@ -348,7 +355,7 @@ export default function App() {
   if (fatal) {
     return (
       <main className="center">
-        <div className="card narrow">
+        <div className="wizard">
           <h1>{t("appName")}</h1>
           <p className="muted">{t("errors.unknown")}</p>
           <button className="primary" onClick={() => void load()}>
@@ -379,18 +386,33 @@ export default function App() {
     );
   }
 
+  const serverHost = (() => {
+    try {
+      return new URL(boot.settings.serverUrl).host;
+    } catch {
+      return boot.settings.serverUrl;
+    }
+  })();
+
   return (
     <div className="app">
       <header className="topbar">
-        <div>
-          <h1>{t("appName")}</h1>
-          <p className="muted small">{boot.settings.serverUrl}</p>
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">
+            ↑
+          </span>
+          <div>
+            <h1 className="wordmark">{t("appName")}</h1>
+            <p className="server">{serverHost}</p>
+          </div>
         </div>
         <div className="topbar-actions">
-          <button onClick={() => void api.openPortal(boot.settings.serverUrl)}>
+          <button className="link" onClick={() => void api.openPortal(boot.settings.serverUrl)}>
             {t("openPortal")}
           </button>
-          <button onClick={() => setSettingsOpen(true)}>{t("settings")}</button>
+          <button className="link" onClick={() => setSettingsOpen(true)}>
+            {t("settings")}
+          </button>
         </div>
       </header>
 
@@ -401,62 +423,74 @@ export default function App() {
         onDismiss={() => setUpdate({ kind: "idle" })}
       />
 
-      <section className="panel">
-        <div className="actions">
-          <button className="primary" onClick={() => void pickFiles()}>
-            {t("chooseFiles")}
-          </button>
-          <button onClick={() => void pickFolder()}>{t("chooseFolder")}</button>
-          <button onClick={() => void pasteFromClipboard()}>{t("pasteImage")}</button>
-        </div>
-        <div className="options">
-          <label>
-            {t("days")}
-            <input
-              type="number"
-              min={0}
-              max={100000}
-              value={days}
-              onChange={(event) => setDays(Math.max(0, Number(event.target.value) || 0))}
-            />
-          </label>
-          <label>
-            {t("downloads")}
-            <input
-              type="number"
-              min={0}
-              max={100000}
-              value={downloads}
-              onChange={(event) => setDownloads(Math.max(0, Number(event.target.value) || 0))}
-            />
-          </label>
-          <label className="grow">
-            {t("password")}
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </label>
-        </div>
-        <DropZone
-          title={t("dropTitle")}
-          hint={t("dropHint")}
-          onDrop={(paths) =>
-            enqueue(
-              paths.map((path) => ({ path, name: path.split(/[\\/]/).pop() || path })),
-              currentOptions(),
-            )
-          }
-        />
-      </section>
+      <div className="desk">
+        <section className="compose">
+          <div className="compose-head">
+            <h2>{t("composeTitle")}</h2>
+          </div>
+          <div className="options">
+            <label>
+              {t("days")}
+              <input
+                type="number"
+                min={0}
+                max={100000}
+                value={days}
+                placeholder={t("daysUnit")}
+                onChange={(event) => setDays(Math.max(0, Number(event.target.value) || 0))}
+              />
+            </label>
+            <label>
+              {t("downloads")}
+              <input
+                type="number"
+                min={0}
+                max={100000}
+                value={downloads}
+                placeholder={t("zeroUnlimited")}
+                onChange={(event) => setDownloads(Math.max(0, Number(event.target.value) || 0))}
+              />
+            </label>
+            <label className="grow">
+              {t("password")}
+              <input
+                type="password"
+                value={password}
+                placeholder={t("optional")}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </label>
+          </div>
+          <DropZone
+            title={t("dropTitle")}
+            hint={t("dropHint")}
+            onDrop={(paths) =>
+              enqueue(
+                paths.map((path) => ({ path, name: path.split(/[\\/]/).pop() || path })),
+                currentOptions(),
+              )
+            }
+          />
+          <div className="actions">
+            <button className="primary" onClick={() => void pickFiles()}>
+              {t("chooseFiles")}
+            </button>
+            <button onClick={() => void pickFolder()}>{t("chooseFolder")}</button>
+            <button className="link" onClick={() => void pasteFromClipboard()}>
+              {t("pasteImage")}
+            </button>
+          </div>
+        </section>
 
-      <UploadQueue
-        items={queue}
-        t={t}
-        onCancelAll={cancelAll}
-        onClearFinished={clearFinished}
-      />
+        <div className="side">
+          <UploadQueue
+            items={queue}
+            t={t}
+            onCancelAll={cancelAll}
+            onClearFinished={clearFinished}
+          />
+        </div>
+      </div>
 
       <HistoryList
         entries={history}
@@ -466,7 +500,7 @@ export default function App() {
         onRemove={(entry) => void removeLocal(entry)}
       />
 
-      <footer className="footer muted small">
+      <footer className="footer">
         <span>{t("version", { version: boot.version })}</span>
         <span>
           {boot.keyPresent
