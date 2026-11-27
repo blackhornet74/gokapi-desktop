@@ -237,12 +237,7 @@ pub async fn delete_remote_many(
     for id in &ids {
         match gokapi::delete_file(&server, &key, id).await {
             Ok(()) => deleted.push(id.clone()),
-            Err(_) => failed.push(
-                names
-                    .get(id)
-                    .cloned()
-                    .unwrap_or_else(|| id.clone()),
-            ),
+            Err(_) => failed.push(names.get(id).cloned().unwrap_or_else(|| id.clone())),
         }
     }
 
