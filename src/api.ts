@@ -51,7 +51,15 @@ export async function copyText(text: string): Promise<void> {
     await navigator.clipboard.writeText(text);
     return;
   }
-  await tauriWriteText(text);
+  try {
+    await tauriWriteText(text);
+  } catch {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      throw { code: "clipboard" };
+    }
+  }
 }
 
 export async function bootstrap(): Promise<Bootstrap> {

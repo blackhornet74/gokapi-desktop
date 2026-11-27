@@ -148,8 +148,8 @@ export default function App() {
       try {
         await api.copyText(links.join("\n"));
         showToast(t("copied") + (links.length > 1 ? ` (${links.length})` : ""));
-      } catch {
-        showToast(t("errors.unknown"));
+      } catch (error) {
+        showToast(t(`errors.${api.errorCode(error)}`));
       }
       void notify(links.length);
     }
@@ -251,8 +251,8 @@ export default function App() {
       try {
         await api.copyText(url);
         showToast(t("copied"));
-      } catch {
-        showToast(t("errors.unknown"));
+      } catch (error) {
+        showToast(t(`errors.${api.errorCode(error)}`));
       }
     },
     [showToast, t],

@@ -119,6 +119,7 @@ const en: Messages = {
     unsupported: "This operation is not supported.",
     timeout: "The request timed out.",
     unknown: "Something went wrong.",
+    clipboard: "Could not copy to the clipboard.",
   },
 } as const;
 
@@ -239,6 +240,7 @@ const it: Messages = {
     unsupported: "Operazione non supportata.",
     timeout: "La richiesta è scaduta.",
     unknown: "Si è verificato un errore.",
+    clipboard: "Impossibile copiare negli appunti.",
   },
 };
 

@@ -12,7 +12,7 @@
     "dialog:default",
     "notification:default",
     "autostart:default",
-    "clipboard-manager:default",
+    "clipboard-manager:allow-write-text",
     "opener:default",
     "updater:default",
     "process:default"
