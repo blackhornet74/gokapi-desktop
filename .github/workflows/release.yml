@@ -9,7 +9,21 @@ permissions:
   contents: write
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure a single draft release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft \
+              --title "Gokapi Desktop $GITHUB_REF_NAME" --notes "See CHANGELOG.md."
+          fi
+
   release:
+    needs: prepare
     strategy:
       fail-fast: false
       matrix:
