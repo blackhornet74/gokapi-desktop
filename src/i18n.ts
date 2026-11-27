@@ -69,6 +69,9 @@ const en: Messages = {
   deleteConfirm: "Delete “{name}” from the server? The link will stop working.",
   deleteConfirmTitle: "Delete from server",
   historyLocalOnly: "Removed from the local history only.",
+  clearHistory: "Clear history",
+  clearHistoryConfirm:
+    "Remove all links from the local history? Files on the server are not deleted.",
 
   settings: "Settings",
   connection: "Connection",
@@ -190,6 +193,9 @@ const it: Messages = {
   deleteConfirm: "Eliminare “{name}” dal server? Il link non funzionerà più.",
   deleteConfirmTitle: "Elimina dal server",
   historyLocalOnly: "Rimosso solo dalla cronologia locale.",
+  clearHistory: "Svuota cronologia",
+  clearHistoryConfirm:
+    "Rimuovere tutti i link dalla cronologia locale? I file sul server non vengono eliminati.",
 
   settings: "Impostazioni",
   connection: "Connessione",

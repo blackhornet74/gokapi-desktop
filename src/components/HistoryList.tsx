@@ -6,6 +6,7 @@ interface Props {
   onCopy: (entry: HistoryEntry) => void;
   onDelete: (entry: HistoryEntry) => void;
   onRemove: (entry: HistoryEntry) => void;
+  onClear: () => void;
 }
 
 function formatTime(value: string): string {
@@ -14,12 +15,19 @@ function formatTime(value: string): string {
   return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
-export default function HistoryList({ entries, t, onCopy, onDelete, onRemove }: Props) {
+export default function HistoryList({ entries, t, onCopy, onDelete, onRemove, onClear }: Props) {
   return (
     <section className="ledger-panel">
       <div className="panel-head">
         <h2>{t("historyTitle")}</h2>
-        <span className="count">{entries.length}</span>
+        <div className="row tight">
+          <span className="count">{entries.length}</span>
+          {entries.length > 0 && (
+            <button className="link small danger" onClick={onClear}>
+              {t("clearHistory")}
+            </button>
+          )}
+        </div>
       </div>
       {entries.length === 0 ? (
         <p className="muted">{t("historyEmpty")}</p>

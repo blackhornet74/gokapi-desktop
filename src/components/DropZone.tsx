@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { isDesktop } from "../api";
+import { isRecentDuplicate } from "../dedupe";
 
 interface Props {
   title: string;
@@ -10,6 +11,9 @@ interface Props {
 
 export default function DropZone({ title, hint, onDrop }: Props) {
   const [active, setActive] = useState(false);
+  const handler = useRef(onDrop);
+  const lastDrop = useRef<{ key: string; at: number } | null>(null);
+  handler.current = onDrop;
 
   useEffect(() => {
     if (!isDesktop) return;
@@ -22,14 +26,20 @@ export default function DropZone({ title, hint, onDrop }: Props) {
           setActive(false);
         } else if (event.payload.type === "drop") {
           setActive(false);
-          if (event.payload.paths.length) onDrop(event.payload.paths);
+          const paths = event.payload.paths;
+          if (!paths.length) return;
+          const key = paths.join("\u0000");
+          const now = Date.now();
+          if (isRecentDuplicate(lastDrop.current, key, now)) return;
+          lastDrop.current = { key, at: now };
+          handler.current(paths);
         }
       })
       .then((unlisten) => {
         dispose = unlisten;
       });
     return () => dispose?.();
-  }, [onDrop]);
+  }, []);
 
   return (
     <div

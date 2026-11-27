@@ -120,7 +120,7 @@ export async function removeHistory(ids: string[]): Promise<HistoryEntry[]> {
 
 export async function pasteImage(): Promise<PickedImage | null> {
   if (isDesktop) return invoke<PickedImage | null>("paste_image");
-  return null;
+  return { path: "/tmp/clipboard-demo.png", name: "clipboard-demo.png" };
 }
 
 export async function openPortal(url: string): Promise<void> {

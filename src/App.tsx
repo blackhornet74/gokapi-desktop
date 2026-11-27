@@ -8,6 +8,7 @@ import { check as checkUpdate } from "@tauri-apps/plugin-updater";
 
 import * as api from "./api";
 import { translate } from "./i18n";
+import { filterActivePaths } from "./dedupe";
 import type {
   Bootstrap,
   HistoryEntry,
@@ -158,7 +159,13 @@ export default function App() {
   const enqueue = useCallback(
     (items: { path: string; name: string; isFolder?: boolean; temporary?: boolean }[], options: UploadOptions) => {
       if (!boot) return;
-      const created: QueueItem[] = items.map((item) => ({
+      const unique = items.filter(
+        (item, index) => items.findIndex((candidate) => candidate.path === item.path) === index,
+      );
+      const allowed = new Set(filterActivePaths(queueRef.current, unique.map((item) => item.path)));
+      const accepted = unique.filter((item) => allowed.has(item.path));
+      if (!accepted.length) return;
+      const created: QueueItem[] = accepted.map((item) => ({
         key: crypto.randomUUID(),
         path: item.path,
         name: item.name,
@@ -282,6 +289,17 @@ export default function App() {
     },
     [showToast, t],
   );
+
+  const clearHistory = useCallback(async () => {
+    if (!history.length) return;
+    if (!window.confirm(t("clearHistoryConfirm"))) return;
+    try {
+      setHistory(await api.removeHistory(history.map((entry) => entry.id)));
+      showToast(t("historyLocalOnly"));
+    } catch (error) {
+      showToast(t(`errors.${api.errorCode(error)}`));
+    }
+  }, [history, showToast, t]);
 
   const checkForUpdates = useCallback(
     async (manual: boolean) => {
@@ -498,6 +516,7 @@ export default function App() {
         onCopy={(entry) => void copyLink(entry.url)}
         onDelete={(entry) => void deleteRemote(entry)}
         onRemove={(entry) => void removeLocal(entry)}
+        onClear={() => void clearHistory()}
       />
 
       <footer className="footer">
