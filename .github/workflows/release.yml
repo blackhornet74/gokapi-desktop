@@ -88,5 +88,77 @@ jobs:
             Unsigned builds: on Windows, SmartScreen may warn on first run. On macOS, right-click the app and choose Open the first time.
           releaseDraft: true
           prerelease: false
-          includeUpdaterJson: true
           args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+  manifest:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build the update manifest from signed assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          release_id=$(gh api "repos/$REPO/releases" --jq ".[] | select(.tag_name==\"$TAG\") | .id" | head -n1)
+          test -n "$release_id"
+          mkdir -p sigs
+          gh api "repos/$REPO/releases/$release_id/assets" --jq '.[] | "\(.id)\t\(.name)"' |
+            while IFS=$'\t' read -r asset_id asset_name; do
+              case "$asset_name" in
+                *.sig) gh api -H "Accept: application/octet-stream" \
+                  "repos/$REPO/releases/assets/$asset_id" > "sigs/$asset_name" ;;
+              esac
+            done
+          python3 - "$TAG" "$REPO" <<'PY'
+          import datetime
+          import json
+          import pathlib
+          import sys
+
+          tag, repo = sys.argv[1], sys.argv[2]
+          sigs = pathlib.Path("sigs")
+
+          def signature(pattern):
+              matches = list(sigs.glob(pattern))
+              return matches[0] if matches else None
+
+          mapping = {
+              "windows-x86_64": "*x64-setup.exe.sig",
+              "windows-x86_64-nsis": "*x64-setup.exe.sig",
+              "windows-aarch64": "*arm64-setup.exe.sig",
+              "windows-aarch64-nsis": "*arm64-setup.exe.sig",
+              "linux-x86_64": "*amd64.AppImage.sig",
+              "linux-x86_64-appimage": "*amd64.AppImage.sig",
+              "linux-x86_64-deb": "*amd64.deb.sig",
+              "linux-aarch64": "*aarch64.AppImage.sig",
+              "linux-aarch64-appimage": "*aarch64.AppImage.sig",
+              "linux-aarch64-deb": "*arm64.deb.sig",
+              "darwin-aarch64": "*aarch64.app.tar.gz.sig",
+              "darwin-aarch64-app": "*aarch64.app.tar.gz.sig",
+          }
+
+          platforms = {}
+          for platform, pattern in mapping.items():
+              file = signature(pattern)
+              if file is None:
+                  continue
+              asset = file.name[:-4]
+              platforms[platform] = {
+                  "signature": file.read_text().strip(),
+                  "url": f"https://github.com/{repo}/releases/download/{tag}/{asset}",
+              }
+
+          if not platforms:
+              sys.exit("no signatures found")
+
+          manifest = {
+              "version": tag.lstrip("v"),
+              "notes": "See CHANGELOG.md",
+              "pub_date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "platforms": platforms,
+          }
+          pathlib.Path("latest.json").write_text(json.dumps(manifest, indent=2))
+          print(f"manifest platforms: {len(platforms)}")
+          PY
+          gh release upload "$TAG" latest.json --repo "$REPO" --clobber
