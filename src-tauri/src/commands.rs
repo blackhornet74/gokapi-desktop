@@ -295,16 +295,21 @@ pub fn open_portal(state: State<'_, AppState>, url: String) -> Result<(), Comman
 }
 
 #[tauri::command]
-pub async fn prepare_archive(paths: Vec<String>) -> Result<PickedImage, CommandError> {
+pub async fn prepare_archive(
+    paths: Vec<String>,
+    name: Option<String>,
+) -> Result<PickedImage, CommandError> {
     if paths.len() < 2 {
         return Err(CommandError::new("unsupported"));
     }
     let sources: Vec<PathBuf> = paths.into_iter().map(PathBuf::from).collect();
+    let display_name = zip::sanitize_archive_name(name.as_deref());
     let token = CancellationToken::new();
-    let (path, name) =
-        tauri::async_runtime::spawn_blocking(move || zip::zip_sources(&sources, &token))
-            .await
-            .map_err(|error| CommandError::io(error.to_string()))??;
+    let (path, name) = tauri::async_runtime::spawn_blocking(move || {
+        zip::zip_sources(&sources, &token, &display_name)
+    })
+    .await
+    .map_err(|error| CommandError::io(error.to_string()))??;
     Ok(PickedImage {
         path: path.to_string_lossy().to_string(),
         name,

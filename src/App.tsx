@@ -9,6 +9,7 @@ import { check as checkUpdate } from "@tauri-apps/plugin-updater";
 import * as api from "./api";
 import { translate } from "./i18n";
 import { filterActivePaths } from "./dedupe";
+import { suggestArchiveName } from "./archive";
 import type {
   Bootstrap,
   HistoryEntry,
@@ -38,6 +39,7 @@ type UploadCandidate = {
 type ArchivePrompt = {
   items: UploadCandidate[];
   options: UploadOptions;
+  suggestedName: string;
 };
 
 export default function App() {
@@ -211,10 +213,15 @@ export default function App() {
         setPassword("");
         return;
       }
-      setArchivePrompt({ items: fresh, options });
+      setArchivePrompt({
+        items: fresh,
+        options,
+        suggestedName: suggestArchiveName(fresh.map((item) => item.path)),
+      });
     },
     [enqueue],
   );
+
 
   const currentOptions = (): UploadOptions => ({ days, downloads, password });
 
@@ -368,20 +375,26 @@ export default function App() {
     [showToast, t],
   );
 
-  const chooseZip = useCallback(async () => {
-    if (!archivePrompt) return;
-    setArchiveBusy(true);
-    try {
-      const archive = await api.prepareArchive(archivePrompt.items.map((item) => item.path));
-      enqueue([{ path: archive.path, name: archive.name, temporary: true }], archivePrompt.options);
-      setPassword("");
-      setArchivePrompt(null);
-    } catch (error) {
-      showToast(t(`errors.${api.errorCode(error)}`));
-    } finally {
-      setArchiveBusy(false);
-    }
-  }, [archivePrompt, enqueue, showToast, t]);
+  const chooseZip = useCallback(
+    async (name: string) => {
+      if (!archivePrompt) return;
+      setArchiveBusy(true);
+      try {
+        const archive = await api.prepareArchive(
+          archivePrompt.items.map((item) => item.path),
+          name,
+        );
+        enqueue([{ path: archive.path, name: archive.name, temporary: true }], archivePrompt.options);
+        setPassword("");
+        setArchivePrompt(null);
+      } catch (error) {
+        showToast(t(`errors.${api.errorCode(error)}`));
+      } finally {
+        setArchiveBusy(false);
+      }
+    },
+    [archivePrompt, enqueue, showToast, t],
+  );
 
   const chooseSeparate = useCallback(() => {
     if (!archivePrompt) return;
@@ -642,9 +655,10 @@ export default function App() {
       {archivePrompt && (
         <ArchiveDialog
           names={archivePrompt.items.map((item) => item.name)}
+          suggestedName={archivePrompt.suggestedName}
           busy={archiveBusy}
           t={t}
-          onZip={() => void chooseZip()}
+          onZip={(name) => void chooseZip(name)}
           onSeparate={chooseSeparate}
           onCancel={cancelArchive}
         />

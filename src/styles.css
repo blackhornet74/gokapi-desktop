@@ -819,6 +819,11 @@ label.check strong {
   border-bottom: 0;
 }
 
+.archive-name input {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+
 .modal h3 {
   font-size: 0.82rem;
   font-weight: 600;

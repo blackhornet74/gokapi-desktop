@@ -6,7 +6,7 @@ Gokapi Desktop creates expiring download links without opening the web interface
 
 ## Features
 
-- Upload multiple files and whole folders (folders are zipped locally before uploading)`n- When selecting several files, choose a single ZIP archive or separate shares
+- Upload multiple files and whole folders (folders are zipped locally before uploading)`n- When selecting several files, choose a single ZIP archive (with an editable name) or separate shares
 - Paste an image from the clipboard
 - Expiry, download limit and optional password per upload
 - Upload queue with progress and cancellation

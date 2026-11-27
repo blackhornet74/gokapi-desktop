@@ -93,17 +93,53 @@ pub fn temp_paste_path(file_name: &str) -> PathBuf {
     std::env::temp_dir().join(file_name)
 }
 
+pub fn sanitize_archive_name(input: Option<&str>) -> String {
+    let fallback = || {
+        format!(
+            "gokapi-{}.zip",
+            chrono::Local::now().format("%Y%m%d-%H%M%S")
+        )
+    };
+    let Some(raw) = input else {
+        return fallback();
+    };
+    let mut cleaned: String = raw
+        .trim()
+        .chars()
+        .map(|character| {
+            if character == '/' || character == '\\' || character.is_control() {
+                '-'
+            } else {
+                character
+            }
+        })
+        .collect();
+    while cleaned.ends_with('.') || cleaned.ends_with(' ') {
+        cleaned.pop();
+    }
+    if cleaned.is_empty() {
+        return fallback();
+    }
+    let base = if cleaned.to_ascii_lowercase().ends_with(".zip") {
+        &cleaned[..cleaned.len() - 4]
+    } else {
+        cleaned.as_str()
+    };
+    let base: String = base.trim().chars().take(100).collect();
+    if base.is_empty() {
+        return fallback();
+    }
+    format!("{}.zip", base.trim_end_matches('.'))
+}
+
 pub fn zip_sources(
     sources: &[PathBuf],
     token: &CancellationToken,
+    name: &str,
 ) -> Result<(PathBuf, String), CommandError> {
     if sources.len() < 2 {
         return Err(CommandError::new("unsupported"));
     }
-    let name = format!(
-        "gokapi-{}.zip",
-        chrono::Local::now().format("%Y%m%d-%H%M%S")
-    );
     let destination = std::env::temp_dir().join(format!("gokapi-desktop-{}.zip", Uuid::new_v4()));
     let options = SimpleFileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated)
@@ -145,7 +181,7 @@ pub fn zip_sources(
         if token.is_cancelled() {
             return Err(CommandError::new("cancelled"));
         }
-        Ok((destination.clone(), name.clone()))
+        Ok((destination.clone(), name.to_string()))
     })();
 
     if result.is_err() {
@@ -168,7 +204,7 @@ mod tests {
         fs::write(&second, b"beta").unwrap();
 
         let token = CancellationToken::new();
-        let (archive_path, name) = zip_sources(&[first, second], &token).unwrap();
+        let (archive_path, name) = zip_sources(&[first, second], &token, "test.zip").unwrap();
         assert!(name.ends_with(".zip"));
 
         let mut archive = zip::ZipArchive::new(fs::File::open(&archive_path).unwrap()).unwrap();
@@ -195,9 +231,24 @@ mod tests {
         fs::write(&second, b"two").unwrap();
 
         let token = CancellationToken::new();
-        let error = zip_sources(&[first, second], &token).unwrap_err();
+        let error = zip_sources(&[first, second], &token, "test.zip").unwrap_err();
         assert_eq!(error.code, "unsupported");
 
         let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn sanitizes_archive_names() {
+        assert_eq!(sanitize_archive_name(Some("report")), "report.zip");
+        assert_eq!(
+            sanitize_archive_name(Some("folder/report.zip")),
+            "folder-report.zip"
+        );
+        assert_eq!(sanitize_archive_name(Some("backup.ZIP")), "backup.zip");
+        assert_eq!(sanitize_archive_name(Some("a/b\\c")), "a-b-c.zip");
+
+        let fallback = sanitize_archive_name(Some("   "));
+        assert!(fallback.starts_with("gokapi-"));
+        assert!(fallback.ends_with(".zip"));
     }
 }

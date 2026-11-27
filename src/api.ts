@@ -131,9 +131,15 @@ export async function pasteImage(): Promise<PickedImage | null> {
   return { path: "/tmp/clipboard-demo.png", name: "clipboard-demo.png" };
 }
 
-export async function prepareArchive(paths: string[]): Promise<PickedImage> {
-  if (isDesktop) return invoke<PickedImage>("prepare_archive", { paths });
-  return { path: `${paths[0] ?? "archive"}.zip`, name: "gokapi-demo.zip" };
+export async function prepareArchive(paths: string[], name?: string): Promise<PickedImage> {
+  if (isDesktop) return invoke<PickedImage>("prepare_archive", { paths, name: name ?? null });
+  const cleaned = (name ?? "").trim().replace(/[\\/]/g, "-");
+  const display = cleaned
+    ? cleaned.toLowerCase().endsWith(".zip")
+      ? cleaned
+      : `${cleaned}.zip`
+    : "gokapi-demo.zip";
+  return { path: `${paths[0] ?? "archive"}.zip`, name: display };
 }
 
 export async function openPortal(url: string): Promise<void> {
