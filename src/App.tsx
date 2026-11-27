@@ -24,8 +24,21 @@ import DropZone from "./components/DropZone";
 import UploadQueue, { type QueueItem } from "./components/UploadQueue";
 import HistoryList from "./components/HistoryList";
 import UpdateBanner from "./components/UpdateBanner";
+import ArchiveDialog from "./components/ArchiveDialog";
 
 type AvailableUpdate = NonNullable<Awaited<ReturnType<typeof checkUpdate>>>;
+
+type UploadCandidate = {
+  path: string;
+  name: string;
+  isFolder?: boolean;
+  temporary?: boolean;
+};
+
+type ArchivePrompt = {
+  items: UploadCandidate[];
+  options: UploadOptions;
+};
 
 export default function App() {
   const [boot, setBoot] = useState<Bootstrap | null>(null);
@@ -39,6 +52,8 @@ export default function App() {
   const [days, setDays] = useState(5);
   const [downloads, setDownloads] = useState(0);
   const [password, setPassword] = useState("");
+  const [archivePrompt, setArchivePrompt] = useState<ArchivePrompt | null>(null);
+  const [archiveBusy, setArchiveBusy] = useState(false);
 
   const queueRef = useRef<QueueItem[]>([]);
   const runningRef = useRef(false);
@@ -157,7 +172,7 @@ export default function App() {
   }, [notify, patch, showToast, t]);
 
   const enqueue = useCallback(
-    (items: { path: string; name: string; isFolder?: boolean; temporary?: boolean }[], options: UploadOptions) => {
+    (items: UploadCandidate[], options: UploadOptions) => {
       if (!boot) return;
       const unique = items.filter(
         (item, index) => items.findIndex((candidate) => candidate.path === item.path) === index,
@@ -183,6 +198,24 @@ export default function App() {
     [boot, runQueue],
   );
 
+  const requestUpload = useCallback(
+    (items: UploadCandidate[], options: UploadOptions) => {
+      const unique = items.filter(
+        (item, index) => items.findIndex((candidate) => candidate.path === item.path) === index,
+      );
+      const allowed = new Set(filterActivePaths(queueRef.current, unique.map((item) => item.path)));
+      const fresh = unique.filter((item) => allowed.has(item.path));
+      if (!fresh.length) return;
+      if (fresh.length === 1) {
+        enqueue(fresh, options);
+        setPassword("");
+        return;
+      }
+      setArchivePrompt({ items: fresh, options });
+    },
+    [enqueue],
+  );
+
   const currentOptions = (): UploadOptions => ({ days, downloads, password });
 
   const pickFiles = useCallback(async () => {
@@ -190,25 +223,23 @@ export default function App() {
     const selection = await openDialog({ multiple: true, directory: false, title: t("chooseFiles") });
     if (!selection) return;
     const paths = Array.isArray(selection) ? selection : [selection];
-    enqueue(
+    requestUpload(
       paths.map((path) => ({ path, name: path.split(/[\\/]/).pop() || path })),
       currentOptions(),
     );
-    setPassword("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enqueue, days, downloads, password, t]);
+  }, [requestUpload, days, downloads, password, t]);
 
   const pickFolder = useCallback(async () => {
     if (!api.isDesktop) return;
     const selection = await openDialog({ multiple: false, directory: true, title: t("chooseFolder") });
     if (!selection || Array.isArray(selection)) return;
-    enqueue(
+    requestUpload(
       [{ path: selection, name: selection.split(/[\\/]/).filter(Boolean).pop() || selection, isFolder: true }],
       currentOptions(),
     );
-    setPassword("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enqueue, days, downloads, password, t]);
+  }, [requestUpload, days, downloads, password, t]);
 
   useEffect(() => {
     if (!api.isDesktop) return;
@@ -227,13 +258,12 @@ export default function App() {
         showToast(t("pasteEmpty"));
         return;
       }
-      enqueue([{ path: image.path, name: image.name, temporary: true }], currentOptions());
-      setPassword("");
+      requestUpload([{ path: image.path, name: image.name, temporary: true }], currentOptions());
     } catch {
       showToast(t("pasteEmpty"));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enqueue, days, downloads, password, showToast, t]);
+  }, [requestUpload, days, downloads, password, showToast, t]);
 
   const cancelAll = useCallback(() => {
     cancelledRef.current = true;
@@ -337,6 +367,32 @@ export default function App() {
     },
     [showToast, t],
   );
+
+  const chooseZip = useCallback(async () => {
+    if (!archivePrompt) return;
+    setArchiveBusy(true);
+    try {
+      const archive = await api.prepareArchive(archivePrompt.items.map((item) => item.path));
+      enqueue([{ path: archive.path, name: archive.name, temporary: true }], archivePrompt.options);
+      setPassword("");
+      setArchivePrompt(null);
+    } catch (error) {
+      showToast(t(`errors.${api.errorCode(error)}`));
+    } finally {
+      setArchiveBusy(false);
+    }
+  }, [archivePrompt, enqueue, showToast, t]);
+
+  const chooseSeparate = useCallback(() => {
+    if (!archivePrompt) return;
+    enqueue(archivePrompt.items, archivePrompt.options);
+    setPassword("");
+    setArchivePrompt(null);
+  }, [archivePrompt, enqueue]);
+
+  const cancelArchive = useCallback(() => {
+    if (!archiveBusy) setArchivePrompt(null);
+  }, [archiveBusy]);
 
   const checkForUpdates = useCallback(
     async (manual: boolean) => {
@@ -520,7 +576,7 @@ export default function App() {
             title={t("dropTitle")}
             hint={t("dropHint")}
             onDrop={(paths) =>
-              enqueue(
+              requestUpload(
                 paths.map((path) => ({ path, name: path.split(/[\\/]/).pop() || path })),
                 currentOptions(),
               )
@@ -580,6 +636,17 @@ export default function App() {
             setSettingsOpen(false);
             if (checkNow) void checkForUpdates(true);
           }}
+        />
+      )}
+
+      {archivePrompt && (
+        <ArchiveDialog
+          names={archivePrompt.items.map((item) => item.name)}
+          busy={archiveBusy}
+          t={t}
+          onZip={() => void chooseZip()}
+          onSeparate={chooseSeparate}
+          onCancel={cancelArchive}
         />
       )}
 

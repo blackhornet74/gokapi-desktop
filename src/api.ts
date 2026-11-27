@@ -131,6 +131,11 @@ export async function pasteImage(): Promise<PickedImage | null> {
   return { path: "/tmp/clipboard-demo.png", name: "clipboard-demo.png" };
 }
 
+export async function prepareArchive(paths: string[]): Promise<PickedImage> {
+  if (isDesktop) return invoke<PickedImage>("prepare_archive", { paths });
+  return { path: `${paths[0] ?? "archive"}.zip`, name: "gokapi-demo.zip" };
+}
+
 export async function openPortal(url: string): Promise<void> {
   if (isDesktop) return invoke<void>("open_portal", { url });
   window.open(url, "_blank", "noopener");

@@ -8,7 +8,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - Cross-platform Tauri + React application replacing the Windows-only PowerShell widget
 - Wizard for server URL and API key with connection verification
-- Uploads of files and folders, clipboard images, expiry, download limits and passwords
+- Uploads of files and folders, clipboard images, expiry, download limits and passwords`n- When several files are selected, choose between one ZIP archive or separate shares
 - Upload queue with progress and cancellation
 - Local history with copy, remove and delete-from-server actions
 - Tray icon, notifications and optional autostart
