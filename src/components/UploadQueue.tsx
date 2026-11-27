@@ -31,7 +31,7 @@ export default function UploadQueue({ items, t, onCancelAll, onClearFinished }: 
   const hasFinished = items.some((item) => !active(item));
 
   return (
-    <section className="ledger-panel">
+    <section className="ledger-panel outbox-panel">
       <div className="panel-head">
         <h2>{t("queueTitle")}</h2>
         <div className="row tight">

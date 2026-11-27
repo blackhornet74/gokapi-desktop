@@ -344,7 +344,7 @@ label.check strong {
   display: grid;
   grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .compose {
@@ -767,6 +767,92 @@ label.check strong {
 
   .options .grow {
     grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 861px) {
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .app {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .desk {
+    flex: 0 0 auto;
+  }
+
+  .side {
+    position: relative;
+    min-height: 0;
+  }
+
+  .outbox-panel {
+    position: absolute;
+    inset: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .outbox-panel .queue,
+  .outbox-panel .queue-empty {
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .history-panel {
+    flex: 1 1 auto;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .history-panel .history {
+    min-height: 0;
+    overflow: auto;
+  }
+  .outbox-panel .queue,
+  .outbox-panel .queue-empty,
+  .history-panel .history {
+    scrollbar-width: thin;
+    scrollbar-color: var(--rule-strong) transparent;
+  }
+
+  .outbox-panel .queue::-webkit-scrollbar,
+  .outbox-panel .queue-empty::-webkit-scrollbar,
+  .history-panel .history::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .outbox-panel .queue::-webkit-scrollbar-track,
+  .outbox-panel .queue-empty::-webkit-scrollbar-track,
+  .history-panel .history::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .outbox-panel .queue::-webkit-scrollbar-thumb,
+  .outbox-panel .queue-empty::-webkit-scrollbar-thumb,
+  .history-panel .history::-webkit-scrollbar-thumb {
+    background: var(--rule-strong);
+    border-radius: 4px;
+  }}
+
+@media (min-width: 861px) and (max-height: 660px) {
+  .dropzone {
+    min-height: 96px;
+  }
+
+  .compose {
+    gap: 10px;
+    padding: 12px;
   }
 }
 

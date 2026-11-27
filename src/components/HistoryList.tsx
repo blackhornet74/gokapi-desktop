@@ -17,7 +17,7 @@ function formatTime(value: string): string {
 
 export default function HistoryList({ entries, t, onCopy, onDelete, onRemove, onClear }: Props) {
   return (
-    <section className="ledger-panel">
+    <section className="ledger-panel history-panel">
       <div className="panel-head">
         <h2>{t("historyTitle")}</h2>
         <div className="row tight">
