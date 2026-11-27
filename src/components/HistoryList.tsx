@@ -1,3 +1,6 @@
+import { useEffect, useRef, useState } from "react";
+
+import { pruneSelection, toggleSelection } from "../dedupe";
 import type { HistoryEntry } from "../types";
 
 interface Props {
@@ -7,6 +10,8 @@ interface Props {
   onDelete: (entry: HistoryEntry) => void;
   onRemove: (entry: HistoryEntry) => void;
   onClear: () => void;
+  onBulkDelete: (ids: string[]) => void;
+  onBulkRemove: (ids: string[]) => void;
 }
 
 function formatTime(value: string): string {
@@ -15,7 +20,34 @@ function formatTime(value: string): string {
   return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
-export default function HistoryList({ entries, t, onCopy, onDelete, onRemove, onClear }: Props) {
+export default function HistoryList({
+  entries,
+  t,
+  onCopy,
+  onDelete,
+  onRemove,
+  onClear,
+  onBulkDelete,
+  onBulkRemove,
+}: Props) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const selectAll = useRef<HTMLInputElement>(null);
+  const ids = entries.map((entry) => entry.id);
+  const allSelected = entries.length > 0 && selected.size === entries.length;
+
+  useEffect(() => {
+    setSelected((current) => pruneSelection(current, entries.map((entry) => entry.id)));
+  }, [entries]);
+
+  useEffect(() => {
+    if (selectAll.current) {
+      selectAll.current.indeterminate = selected.size > 0 && !allSelected;
+    }
+  }, [selected, allSelected]);
+
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(ids));
+  const selectedIds = [...selected];
+
   return (
     <section className="ledger-panel history-panel">
       <div className="panel-head">
@@ -29,28 +61,64 @@ export default function HistoryList({ entries, t, onCopy, onDelete, onRemove, on
           )}
         </div>
       </div>
+
+      {entries.length > 0 && (
+        <div className="bulk-bar">
+          <label className="select-all">
+            <input
+              ref={selectAll}
+              type="checkbox"
+              checked={allSelected}
+              onChange={toggleAll}
+              aria-label={t("selectAll")}
+            />
+            <span>{t("selectAll")}</span>
+          </label>
+          {selected.size > 0 && (
+            <div className="row tight">
+              <span className="count">{t("selectedCount", { count: selected.size })}</span>
+              <button className="link small" onClick={() => onBulkRemove(selectedIds)}>
+                {t("removeSelected")}
+              </button>
+              <button className="link small danger" onClick={() => onBulkDelete(selectedIds)}>
+                {t("deleteSelected")}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {entries.length === 0 ? (
         <p className="muted">{t("historyEmpty")}</p>
       ) : (
         <ul className="history">
           {entries.map((entry) => (
-            <li key={entry.id}>
-              <div className="history-line">
-                <span className="history-name" title={entry.name}>
-                  {entry.name}
-                </span>
-                <span className="history-time">{formatTime(entry.time)}</span>
-              </div>
-              <div className="history-actions">
-                <button className="link small" onClick={() => onCopy(entry)}>
-                  {t("copy")}
-                </button>
-                <button className="link small" onClick={() => onRemove(entry)}>
-                  {t("removeLocal")}
-                </button>
-                <button className="link small danger" onClick={() => onDelete(entry)}>
-                  {t("deleteRemote")}
-                </button>
+            <li key={entry.id} className={selected.has(entry.id) ? "selected" : ""}>
+              <input
+                type="checkbox"
+                className="history-check"
+                checked={selected.has(entry.id)}
+                onChange={() => setSelected((current) => toggleSelection(current, entry.id))}
+                aria-label={t("selectFile", { name: entry.name })}
+              />
+              <div className="history-body">
+                <div className="history-line">
+                  <span className="history-name" title={entry.name}>
+                    {entry.name}
+                  </span>
+                  <span className="history-time">{formatTime(entry.time)}</span>
+                </div>
+                <div className="history-actions">
+                  <button className="link small" onClick={() => onCopy(entry)}>
+                    {t("copy")}
+                  </button>
+                  <button className="link small" onClick={() => onRemove(entry)}>
+                    {t("removeLocal")}
+                  </button>
+                  <button className="link small danger" onClick={() => onDelete(entry)}>
+                    {t("deleteRemote")}
+                  </button>
+                </div>
               </div>
             </li>
           ))}

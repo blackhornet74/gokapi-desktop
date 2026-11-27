@@ -70,3 +70,8 @@ export type UpdateStatus =
   | { kind: "downloading"; version: string }
   | { kind: "ready"; version: string }
   | { kind: "error"; message: string };
+
+export interface BulkDeleteResult {
+  history: HistoryEntry[];
+  failed: string[];
+}

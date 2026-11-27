@@ -528,9 +528,10 @@ label.check strong {
 }
 
 .history li {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
   padding: 10px 0;
   border-bottom: 1px solid var(--rule);
 }
@@ -538,6 +539,49 @@ label.check strong {
 .history li:last-child {
   border-bottom: 0;
   padding-bottom: 0;
+}
+
+.history li.selected {
+  background: color-mix(in srgb, var(--blue) 6%, transparent);
+}
+
+.history-check {
+  width: auto;
+  margin: 3px 0 0;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+
+.history-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bulk-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.select-all {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.select-all input {
+  width: auto;
+  accent-color: var(--blue);
 }
 
 .history-line {
@@ -858,7 +902,6 @@ label.check strong {
 
 @media (max-width: 620px) {
   .topbar,
-  .history li,
   .banner {
     flex-direction: column;
     align-items: stretch;
@@ -876,6 +919,11 @@ label.check strong {
 
   .history-actions {
     justify-content: flex-start;
+  }
+
+  .bulk-bar {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 

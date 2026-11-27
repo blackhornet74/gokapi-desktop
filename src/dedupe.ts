@@ -18,3 +18,15 @@ export function filterActivePaths<T extends { path: string; status: string }>(
   );
   return candidates.filter((path) => !busy.has(path));
 }
+
+export function toggleSelection(current: Set<string>, id: string): Set<string> {
+  const next = new Set(current);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  return next;
+}
+
+export function pruneSelection(current: Set<string>, alive: string[]): Set<string> {
+  const keep = new Set(alive);
+  return new Set([...current].filter((id) => keep.has(id)));
+}

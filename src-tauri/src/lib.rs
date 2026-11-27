@@ -106,6 +106,7 @@ pub fn run() {
             commands::upload_file,
             commands::cancel_upload,
             commands::delete_remote,
+            commands::delete_remote_many,
             commands::remove_history,
             commands::paste_image,
             commands::open_portal

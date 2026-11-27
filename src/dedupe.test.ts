@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterActivePaths, isRecentDuplicate } from "./dedupe";
+import { filterActivePaths, isRecentDuplicate, pruneSelection, toggleSelection } from "./dedupe";
 
 describe("isRecentDuplicate", () => {
   it("ignores the same drop within the window", () => {
@@ -19,5 +19,19 @@ describe("filterActivePaths", () => {
       { path: "c", status: "done" },
     ];
     expect(filterActivePaths(queue, ["a", "b", "c", "d"])).toEqual(["c", "d"]);
+  });
+});
+
+describe("selection helpers", () => {
+  it("toggles ids without mutating the original set", () => {
+    const original = new Set(["a"]);
+    const added = toggleSelection(original, "b");
+    expect([...added]).toEqual(["a", "b"]);
+    expect([...original]).toEqual(["a"]);
+    expect([...toggleSelection(added, "a")]).toEqual(["b"]);
+  });
+
+  it("drops ids that no longer exist", () => {
+    expect([...pruneSelection(new Set(["a", "b", "c"]), ["b", "c"])]).toEqual(["b", "c"]);
   });
 });

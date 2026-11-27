@@ -33,6 +33,13 @@ pub struct PickedImage {
     name: String,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BulkDeleteResult {
+    history: Vec<HistoryEntry>,
+    failed: Vec<String>,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadJob {
@@ -209,6 +216,40 @@ pub async fn delete_remote(
     let key = credentials::load(&state).ok_or_else(|| CommandError::new("unauthorized"))?;
     gokapi::delete_file(&server, &key, &id).await?;
     Ok(state.remove_history(&[id]))
+}
+
+#[tauri::command]
+pub async fn delete_remote_many(
+    state: State<'_, AppState>,
+    ids: Vec<String>,
+) -> Result<BulkDeleteResult, CommandError> {
+    let settings = state.snapshot_settings();
+    let server = gokapi::normalize_server(&settings.server_url)?;
+    let key = credentials::load(&state).ok_or_else(|| CommandError::new("unauthorized"))?;
+    let names: std::collections::HashMap<String, String> = state
+        .snapshot_history()
+        .into_iter()
+        .map(|entry| (entry.id, entry.name))
+        .collect();
+
+    let mut deleted = Vec::new();
+    let mut failed = Vec::new();
+    for id in &ids {
+        match gokapi::delete_file(&server, &key, id).await {
+            Ok(()) => deleted.push(id.clone()),
+            Err(_) => failed.push(
+                names
+                    .get(id)
+                    .cloned()
+                    .unwrap_or_else(|| id.clone()),
+            ),
+        }
+    }
+
+    Ok(BulkDeleteResult {
+        history: state.remove_history(&deleted),
+        failed,
+    })
 }
 
 #[tauri::command]

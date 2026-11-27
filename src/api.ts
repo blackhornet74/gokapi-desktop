@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { writeText as tauriWriteText } from "@tauri-apps/plugin-clipboard-manager";
 import type {
   Bootstrap,
+  BulkDeleteResult,
   CommandError,
   HistoryEntry,
   PickedImage,
@@ -110,6 +111,13 @@ export async function deleteRemote(id: string): Promise<HistoryEntry[]> {
   if (isDesktop) return invoke<HistoryEntry[]>("delete_remote", { id });
   mockHistory = mockHistory.filter((entry) => entry.id !== id);
   return [...mockHistory];
+}
+
+export async function deleteRemoteMany(ids: string[]): Promise<BulkDeleteResult> {
+  if (isDesktop) return invoke<BulkDeleteResult>("delete_remote_many", { ids });
+  const removed = new Set(ids);
+  mockHistory = mockHistory.filter((entry) => !removed.has(entry.id));
+  return { history: [...mockHistory], failed: [] };
 }
 
 export async function removeHistory(ids: string[]): Promise<HistoryEntry[]> {

@@ -301,6 +301,43 @@ export default function App() {
     }
   }, [history, showToast, t]);
 
+  const removeSelected = useCallback(
+    async (ids: string[]) => {
+      if (!ids.length) return;
+      try {
+        setHistory(await api.removeHistory(ids));
+        showToast(t("historyLocalOnly"));
+      } catch (error) {
+        showToast(t(`errors.${api.errorCode(error)}`));
+      }
+    },
+    [showToast, t],
+  );
+
+  const deleteSelected = useCallback(
+    async (ids: string[]) => {
+      if (!ids.length) return;
+      if (!window.confirm(t("bulkDeleteConfirm", { count: ids.length }))) return;
+      try {
+        const result = await api.deleteRemoteMany(ids);
+        setHistory(result.history);
+        if (result.failed.length) {
+          showToast(
+            t("bulkDeletePartial", {
+              deleted: ids.length - result.failed.length,
+              failed: result.failed.length,
+            }),
+          );
+        } else {
+          showToast(t("bulkDeleted", { count: ids.length }));
+        }
+      } catch (error) {
+        showToast(t(`errors.${api.errorCode(error)}`));
+      }
+    },
+    [showToast, t],
+  );
+
   const checkForUpdates = useCallback(
     async (manual: boolean) => {
       setUpdate({ kind: "checking" });
@@ -517,6 +554,8 @@ export default function App() {
         onDelete={(entry) => void deleteRemote(entry)}
         onRemove={(entry) => void removeLocal(entry)}
         onClear={() => void clearHistory()}
+        onBulkDelete={(ids) => void deleteSelected(ids)}
+        onBulkRemove={(ids) => void removeSelected(ids)}
       />
 
       <footer className="footer">

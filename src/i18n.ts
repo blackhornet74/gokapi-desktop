@@ -72,6 +72,15 @@ const en: Messages = {
   clearHistory: "Clear history",
   clearHistoryConfirm:
     "Remove all links from the local history? Files on the server are not deleted.",
+  selectAll: "Select all",
+  selectFile: "Select {name}",
+  selectedCount: "{count} selected",
+  removeSelected: "Remove selected",
+  deleteSelected: "Delete selected from server",
+  bulkDeleteConfirm:
+    "Delete {count} files from the server? Their links will stop working.",
+  bulkDeleted: "Deleted {count} files from the server.",
+  bulkDeletePartial: "Deleted {deleted}. Not deleted: {failed}.",
 
   settings: "Settings",
   connection: "Connection",
@@ -196,6 +205,14 @@ const it: Messages = {
   clearHistory: "Svuota cronologia",
   clearHistoryConfirm:
     "Rimuovere tutti i link dalla cronologia locale? I file sul server non vengono eliminati.",
+  selectAll: "Seleziona tutto",
+  selectFile: "Seleziona {name}",
+  selectedCount: "{count} selezionati",
+  removeSelected: "Rimuovi selezionati",
+  deleteSelected: "Elimina selezionati dal server",
+  bulkDeleteConfirm: "Eliminare {count} file dal server? I link smetteranno di funzionare.",
+  bulkDeleted: "Eliminati {count} file dal server.",
+  bulkDeletePartial: "Eliminati {deleted}. Non eliminati: {failed}.",
 
   settings: "Impostazioni",
   connection: "Connessione",
