@@ -35,6 +35,18 @@ let mockHistory: HistoryEntry[] = [
     url: "https://files.example.com/d?id=h2",
     time: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
   },
+  {
+    id: "h3",
+    name: "quarterly-results.xlsx",
+    url: "https://files.example.com/d?id=h3",
+    time: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
+  },
+  {
+    id: "h4",
+    name: "design-assets.zip",
+    url: "https://files.example.com/d?id=h4",
+    time: new Date(Date.now() - 1000 * 60 * 60 * 50).toISOString(),
+  },
 ];
 
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));

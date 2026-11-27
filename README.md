@@ -1,16 +1,27 @@
 # Gokapi Desktop
 
+[![CI](https://github.com/blackhornet74/gokapi-desktop/actions/workflows/ci.yml/badge.svg)](https://github.com/blackhornet74/gokapi-desktop/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/blackhornet74/gokapi-desktop)](https://github.com/blackhornet74/gokapi-desktop/releases/latest)
+[![License](https://img.shields.io/github/license/blackhornet74/gokapi-desktop)](LICENSE)
+[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS-blue)](#install)
+
 A small cross-platform desktop client for [Gokapi](https://github.com/Forceu/Gokapi), the self-hosted file sharing server.
 
 Gokapi Desktop creates expiring download links without opening the web interface: drop files or folders, set expiry and download limits, and copy the link. It runs on Windows, Linux and macOS (Apple Silicon).
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/main-dark.png">
+  <img src="docs/screenshots/main-light.png" alt="Gokapi Desktop: new dispatch, outbox and sent links">
+</picture>
+
 ## Features
 
-- Upload multiple files and whole folders (folders are zipped locally before uploading)`n- When selecting several files, choose a single ZIP archive (with an editable name) or separate shares
+- Upload multiple files and whole folders (folders are zipped locally before uploading)
+- When selecting several files, choose a single ZIP archive (with an editable name) or separate shares
 - Paste an image from the clipboard
 - Expiry, download limit and optional password per upload
 - Upload queue with progress and cancellation
-- Local history of links, with copy, remove and delete-from-server actions
+- Local history of links, with multi-select, bulk removal and bulk delete from the server
 - Tray icon, native notifications, optional autostart
 - English and Italian interface
 - Automatic updates signed with a minisign key
@@ -37,6 +48,14 @@ The builds are **not signed** with an OS code-signing certificate:
 
 - **Windows:** SmartScreen may show a warning on first run. Choose “More info” → “Run anyway” only if you downloaded the file from this repository.
 - **macOS:** Gatekeeper blocks the first launch. Right-click the app → **Open**, or run `xattr -dr com.apple.quarantine "/Applications/Gokapi Desktop.app"`. Install the app in `~/Applications` or `/Applications` to allow updates.
+
+## Known limitations
+
+- Builds are not code-signed: first launch needs SmartScreen confirmation on Windows and right-click → Open on macOS.
+- End-to-end encrypted uploads (Gokapi encryption level 3) are not available through the API; use the Gokapi CLI.
+- On Linux, automatic updates work for the AppImage; the `.deb` package is updated manually.
+- On Linux without a Secret Service keyring, the app asks before storing the API key in a `0600` file.
+- There is no telemetry, crash reporting or cloud sync.
 
 ## First run
 

@@ -1,0 +1,38 @@
+name: Feature request
+description: Suggest an improvement for Gokapi Desktop
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the workflow or limitation you ran into.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should the app do instead?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: dropdown
+    id: platforms
+    attributes:
+      label: Platforms that need this
+      multiple: true
+      options:
+        - Windows
+        - Linux
+        - macOS
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: This works within the Gokapi API and does not require server changes.
+        - label: I checked that this is not already in the README or CHANGELOG.
