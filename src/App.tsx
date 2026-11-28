@@ -347,7 +347,7 @@ export default function App() {
 
   const deleteRemote = useCallback(
     async (entry: HistoryEntry) => {
-      if (!window.confirm(t("deleteConfirm", { name: entry.name }))) return;
+      if (!(await window.confirm(t("deleteConfirm", { name: entry.name })))) return;
       try {
         setHistory(await api.deleteRemote(entry.id));
         showToast(t("deletedFromServer"));
@@ -362,7 +362,7 @@ export default function App() {
   const deleteSelected = useCallback(
     async (ids: string[]) => {
       if (!ids.length) return;
-      if (!window.confirm(t("bulkDeleteConfirm", { count: ids.length }))) return;
+      if (!(await window.confirm(t("bulkDeleteConfirm", { count: ids.length })))) return;
       try {
         const result = await api.deleteRemoteMany(ids);
         setHistory(result.history);
@@ -467,7 +467,11 @@ export default function App() {
           await api.saveApiKey(newKey.trim(), false);
         } catch (error) {
           if (api.errorCode(error) === "keyring_unavailable") {
-            if (!window.confirm(`${t("keyringFallbackTitle")}\n\n${t("keyringFallbackBody")}`)) {
+            if (
+              !(await window.confirm(
+                `${t("keyringFallbackTitle")}\n\n${t("keyringFallbackBody")}`,
+              ))
+            ) {
               throw error;
             }
             await api.saveApiKey(newKey.trim(), true);

@@ -53,7 +53,7 @@ export default function Wizard({ initialLanguage, onFinished }: Props) {
         await api.saveApiKey(apiKey.trim(), false);
       } catch (failure) {
         if (api.errorCode(failure) === "keyring_unavailable") {
-          const accepted = window.confirm(
+          const accepted = await window.confirm(
             `${t("keyringFallbackTitle")}\n\n${t("keyringFallbackBody")}`,
           );
           if (!accepted) throw failure;
