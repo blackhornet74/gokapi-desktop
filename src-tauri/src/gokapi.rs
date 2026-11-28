@@ -383,7 +383,13 @@ pub async fn list_history(server: &Url, key: &str) -> Result<ServerHistory, Comm
 
     let (downloads, logs_available) = match fetch_last_downloads(server, key).await {
         Ok(map) => (map, true),
-        Err(_) => (HashMap::new(), false),
+        Err(error) => {
+            eprintln!(
+                "gokapi logs unavailable: code={} detail={:?}",
+                error.code, error.detail
+            );
+            (HashMap::new(), false)
+        }
     };
 
     let mut entries = Vec::new();
@@ -420,11 +426,12 @@ async fn fetch_last_downloads(
     key: &str,
 ) -> Result<HashMap<String, i64>, CommandError> {
     let endpoint = server
-        .join("api/logs/get?timestamp=0")
+        .join("api/logs/get")
         .map_err(|_| CommandError::new("invalid_url"))?;
     let response = client(Duration::from_secs(30))?
         .get(endpoint)
         .header("apikey", key)
+        .header("timestamp", "0")
         .send()
         .await
         .map_err(map_reqwest)?;
