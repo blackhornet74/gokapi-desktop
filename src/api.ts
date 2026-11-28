@@ -8,6 +8,7 @@ import type {
   PickedImage,
   ServerInfo,
   Settings,
+  SyncResult,
   UploadJob,
   UploadResult,
 } from "./types";
@@ -132,6 +133,10 @@ export async function deleteRemoteMany(ids: string[]): Promise<BulkDeleteResult>
   return { history: [...mockHistory], failed: [] };
 }
 
+export async function syncHistory(): Promise<SyncResult> {
+  if (isDesktop) return invoke<SyncResult>("sync_history");
+  return { history: [...mockHistory], logsAvailable: true };
+}
 export async function removeHistory(ids: string[]): Promise<HistoryEntry[]> {
   if (isDesktop) return invoke<HistoryEntry[]>("remove_history", { ids });
   mockHistory = mockHistory.filter((entry) => !ids.includes(entry.id));

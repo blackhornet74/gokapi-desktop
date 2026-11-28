@@ -8,10 +8,11 @@ interface Props {
   t: (key: string, values?: Record<string, string | number>) => string;
   onCopy: (entry: HistoryEntry) => void;
   onDelete: (entry: HistoryEntry) => void;
-  onRemove: (entry: HistoryEntry) => void;
-  onClear: () => void;
   onBulkDelete: (ids: string[]) => void;
-  onBulkRemove: (ids: string[]) => void;
+  onRefresh: () => void;
+  syncing: boolean;
+  logsAvailable: boolean;
+  syncWarning: boolean;
 }
 
 function formatTime(value: string): string {
@@ -25,10 +26,11 @@ export default function HistoryList({
   t,
   onCopy,
   onDelete,
-  onRemove,
-  onClear,
   onBulkDelete,
-  onBulkRemove,
+  onRefresh,
+  syncing,
+  logsAvailable,
+  syncWarning,
 }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const selectAll = useRef<HTMLInputElement>(null);
@@ -54,13 +56,13 @@ export default function HistoryList({
         <h2>{t("historyTitle")}</h2>
         <div className="row tight">
           <span className="count">{entries.length}</span>
-          {entries.length > 0 && (
-            <button className="link small danger" onClick={onClear}>
-              {t("clearHistory")}
-            </button>
-          )}
+          <button className="link small" onClick={onRefresh} disabled={syncing}>
+            {syncing ? t("syncing") : t("refresh")}
+          </button>
         </div>
       </div>
+
+      {syncWarning && <p className="hint sync-warning">{t("syncWarning")}</p>}
 
       {entries.length > 0 && (
         <div className="bulk-bar">
@@ -77,9 +79,6 @@ export default function HistoryList({
           {selected.size > 0 && (
             <div className="row tight">
               <span className="count">{t("selectedCount", { count: selected.size })}</span>
-              <button className="link small" onClick={() => onBulkRemove(selectedIds)}>
-                {t("removeSelected")}
-              </button>
               <button className="link small danger" onClick={() => onBulkDelete(selectedIds)}>
                 {t("deleteSelected")}
               </button>
@@ -92,36 +91,50 @@ export default function HistoryList({
         <p className="muted">{t("historyEmpty")}</p>
       ) : (
         <ul className="history">
-          {entries.map((entry) => (
-            <li key={entry.id} className={selected.has(entry.id) ? "selected" : ""}>
-              <input
-                type="checkbox"
-                className="history-check"
-                checked={selected.has(entry.id)}
-                onChange={() => setSelected((current) => toggleSelection(current, entry.id))}
-                aria-label={t("selectFile", { name: entry.name })}
-              />
-              <div className="history-body">
-                <div className="history-line">
-                  <span className="history-name" title={entry.name}>
-                    {entry.name}
-                  </span>
-                  <span className="history-time">{formatTime(entry.time)}</span>
+          {entries.map((entry) => {
+            const count = entry.downloads ?? 0;
+            const downloadsLabel =
+              count === 1 ? t("downloadOne") : t("downloadsCount", { count });
+            const lastLabel = entry.lastDownload
+              ? t("lastDownload", { time: formatTime(entry.lastDownload) })
+              : count > 0 && !logsAvailable
+                ? "—"
+                : t("neverDownloaded");
+            return (
+              <li key={entry.id} className={selected.has(entry.id) ? "selected" : ""}>
+                <input
+                  type="checkbox"
+                  className="history-check"
+                  checked={selected.has(entry.id)}
+                  onChange={() => setSelected((current) => toggleSelection(current, entry.id))}
+                  aria-label={t("selectFile", { name: entry.name })}
+                />
+                <div className="history-body">
+                  <div className="history-line">
+                    <span className="history-name" title={entry.name}>
+                      {entry.name}
+                    </span>
+                    <span className="history-time">{formatTime(entry.time)}</span>
+                  </div>
+                  <div
+                    className="history-meta"
+                    title={!logsAvailable ? t("lastDownloadHint") : undefined}
+                  >
+                    <span>{downloadsLabel}</span>
+                    <span>{lastLabel}</span>
+                  </div>
+                  <div className="history-actions">
+                    <button className="link small" onClick={() => onCopy(entry)}>
+                      {t("copy")}
+                    </button>
+                    <button className="link small danger" onClick={() => onDelete(entry)}>
+                      {t("deleteRemote")}
+                    </button>
+                  </div>
                 </div>
-                <div className="history-actions">
-                  <button className="link small" onClick={() => onCopy(entry)}>
-                    {t("copy")}
-                  </button>
-                  <button className="link small" onClick={() => onRemove(entry)}>
-                    {t("removeLocal")}
-                  </button>
-                  <button className="link small danger" onClick={() => onDelete(entry)}>
-                    {t("deleteRemote")}
-                  </button>
-                </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>

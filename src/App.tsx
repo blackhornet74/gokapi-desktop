@@ -56,6 +56,9 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [archivePrompt, setArchivePrompt] = useState<ArchivePrompt | null>(null);
   const [archiveBusy, setArchiveBusy] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [logsAvailable, setLogsAvailable] = useState(true);
+  const [syncWarning, setSyncWarning] = useState(false);
 
   const queueRef = useRef<QueueItem[]>([]);
   const runningRef = useRef(false);
@@ -74,6 +77,30 @@ export default function App() {
     window.setTimeout(() => setToast(null), 3200);
   }, []);
 
+  const refreshHistory = useCallback(
+    async (manual = false) => {
+      if (!api.isDesktop) return;
+      setSyncing(true);
+      try {
+        const result = await api.syncHistory();
+        setHistory(result.history);
+        setLogsAvailable(result.logsAvailable);
+        setSyncWarning(false);
+      } catch (error) {
+        const code = api.errorCode(error);
+        if (code === "unauthorized" || code === "forbidden") {
+          setSyncWarning(true);
+          if (manual) showToast(t("syncWarning"));
+        } else if (manual) {
+          showToast(t(`errors.${code}`));
+        }
+      } finally {
+        setSyncing(false);
+      }
+    },
+    [showToast, t],
+  );
+
   const load = useCallback(async () => {
     try {
       const data = await api.bootstrap();
@@ -91,6 +118,19 @@ export default function App() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!boot?.keyPresent || !boot.settings.serverUrl) return;
+    void refreshHistory(false);
+  }, [boot, refreshHistory]);
+
+  useEffect(() => {
+    if (!boot?.keyPresent || !boot.settings.serverUrl || !api.isDesktop) return;
+    const timer = window.setInterval(() => {
+      void refreshHistory(false);
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [boot, refreshHistory]);
 
   useEffect(() => {
     if (!api.isDesktop) return;
@@ -170,8 +210,9 @@ export default function App() {
         showToast(t(`errors.${api.errorCode(error)}`));
       }
       void notify(links.length);
+      void refreshHistory(false);
     }
-  }, [notify, patch, showToast, t]);
+  }, [notify, patch, refreshHistory, showToast, t]);
 
   const enqueue = useCallback(
     (items: UploadCandidate[], options: UploadOptions) => {
@@ -307,7 +348,7 @@ export default function App() {
       if (!window.confirm(t("deleteConfirm", { name: entry.name }))) return;
       try {
         setHistory(await api.deleteRemote(entry.id));
-        showToast(t("historyLocalOnly"));
+        showToast(t("deletedFromServer"));
       } catch (error) {
         showToast(t(`errors.${api.errorCode(error)}`));
       }
@@ -315,41 +356,6 @@ export default function App() {
     [showToast, t],
   );
 
-  const removeLocal = useCallback(
-    async (entry: HistoryEntry) => {
-      try {
-        setHistory(await api.removeHistory([entry.id]));
-        showToast(t("historyLocalOnly"));
-      } catch {
-        showToast(t("errors.unknown"));
-      }
-    },
-    [showToast, t],
-  );
-
-  const clearHistory = useCallback(async () => {
-    if (!history.length) return;
-    if (!window.confirm(t("clearHistoryConfirm"))) return;
-    try {
-      setHistory(await api.removeHistory(history.map((entry) => entry.id)));
-      showToast(t("historyLocalOnly"));
-    } catch (error) {
-      showToast(t(`errors.${api.errorCode(error)}`));
-    }
-  }, [history, showToast, t]);
-
-  const removeSelected = useCallback(
-    async (ids: string[]) => {
-      if (!ids.length) return;
-      try {
-        setHistory(await api.removeHistory(ids));
-        showToast(t("historyLocalOnly"));
-      } catch (error) {
-        showToast(t(`errors.${api.errorCode(error)}`));
-      }
-    },
-    [showToast, t],
-  );
 
   const deleteSelected = useCallback(
     async (ids: string[]) => {
@@ -358,6 +364,7 @@ export default function App() {
       try {
         const result = await api.deleteRemoteMany(ids);
         setHistory(result.history);
+        void refreshHistory(false);
         if (result.failed.length) {
           showToast(
             t("bulkDeletePartial", {
@@ -372,7 +379,7 @@ export default function App() {
         showToast(t(`errors.${api.errorCode(error)}`));
       }
     },
-    [showToast, t],
+    [refreshHistory, showToast, t],
   );
 
   const chooseZip = useCallback(
@@ -621,10 +628,11 @@ export default function App() {
         t={t}
         onCopy={(entry) => void copyLink(entry.url)}
         onDelete={(entry) => void deleteRemote(entry)}
-        onRemove={(entry) => void removeLocal(entry)}
-        onClear={() => void clearHistory()}
         onBulkDelete={(ids) => void deleteSelected(ids)}
-        onBulkRemove={(ids) => void removeSelected(ids)}
+        onRefresh={() => void refreshHistory(true)}
+        syncing={syncing}
+        logsAvailable={logsAvailable}
+        syncWarning={syncWarning}
       />
 
       <footer className="footer">

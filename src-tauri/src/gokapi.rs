@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -62,6 +63,12 @@ struct FileInfo {
     id: String,
     #[serde(rename = "UrlDownload")]
     url_download: String,
+    #[serde(rename = "UploadDate", default)]
+    upload_date: i64,
+    #[serde(rename = "ExpireAt", default)]
+    expire_at: i64,
+    #[serde(rename = "DownloadCount", default)]
+    download_count: i64,
 }
 
 pub fn normalize_server(input: &str) -> Result<Url, CommandError> {
@@ -282,7 +289,12 @@ pub async fn upload_path(
         id: parsed.file.id,
         name: display_name,
         url: url.to_string(),
-        time: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+        time: iso_timestamp(parsed.file.upload_date).unwrap_or_else(|| {
+            chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+        }),
+        downloads: parsed.file.download_count,
+        last_download: None,
+        expires_at: iso_timestamp(parsed.file.expire_at),
     })
 }
 
@@ -312,6 +324,149 @@ pub async fn delete_file(server: &Url, key: &str, id: &str) -> Result<(), Comman
         return Err(map_status(status, &body));
     }
     Ok(())
+}
+
+#[derive(Deserialize)]
+struct ListedFile {
+    #[serde(rename = "Id")]
+    id: String,
+    #[serde(rename = "Name")]
+    name: String,
+    #[serde(rename = "UrlDownload")]
+    url: String,
+    #[serde(rename = "UploadDate", default)]
+    upload_date: i64,
+    #[serde(rename = "ExpireAt", default)]
+    expire_at: i64,
+    #[serde(rename = "DownloadCount", default)]
+    downloads: i64,
+}
+
+#[derive(Deserialize)]
+struct LogsResponse {
+    #[serde(rename = "logEntries")]
+    entries: String,
+}
+
+pub struct ServerHistory {
+    pub entries: Vec<HistoryEntry>,
+    pub logs_available: bool,
+}
+
+fn iso_timestamp(seconds: i64) -> Option<String> {
+    if seconds <= 0 {
+        return None;
+    }
+    chrono::DateTime::<chrono::Utc>::from_timestamp(seconds, 0)
+        .map(|date| date.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
+}
+
+pub async fn list_history(server: &Url, key: &str) -> Result<ServerHistory, CommandError> {
+    let endpoint = server
+        .join("api/files/list")
+        .map_err(|_| CommandError::new("invalid_url"))?;
+    let response = client(Duration::from_secs(30))?
+        .get(endpoint)
+        .header("apikey", key)
+        .send()
+        .await
+        .map_err(map_reqwest)?;
+    let status = response.status();
+    let body = response.text().await.map_err(map_reqwest)?;
+    if !status.is_success() {
+        return Err(map_status(status, &body));
+    }
+    let files: Vec<ListedFile> = serde_json::from_str(&body)?;
+
+    let (downloads, logs_available) = match fetch_last_downloads(server, key).await {
+        Ok(map) => (map, true),
+        Err(_) => (HashMap::new(), false),
+    };
+
+    let mut entries = Vec::new();
+    for file in files {
+        let Ok(url) = Url::parse(&file.url) else {
+            continue;
+        };
+        if !same_origin(server, &url) {
+            continue;
+        }
+        entries.push(HistoryEntry {
+            id: file.id.clone(),
+            name: file.name,
+            url: url.to_string(),
+            time: iso_timestamp(file.upload_date).unwrap_or_else(|| {
+                chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+            }),
+            downloads: file.downloads,
+            last_download: downloads
+                .get(&file.id)
+                .and_then(|seconds| iso_timestamp(*seconds)),
+            expires_at: iso_timestamp(file.expire_at),
+        });
+    }
+    entries.sort_by(|left, right| right.time.cmp(&left.time));
+    Ok(ServerHistory {
+        entries,
+        logs_available,
+    })
+}
+
+async fn fetch_last_downloads(
+    server: &Url,
+    key: &str,
+) -> Result<HashMap<String, i64>, CommandError> {
+    let endpoint = server
+        .join("api/logs/get?timestamp=0")
+        .map_err(|_| CommandError::new("invalid_url"))?;
+    let response = client(Duration::from_secs(30))?
+        .get(endpoint)
+        .header("apikey", key)
+        .send()
+        .await
+        .map_err(map_reqwest)?;
+    let status = response.status();
+    let body = response.text().await.map_err(map_reqwest)?;
+    if !status.is_success() {
+        return Err(map_status(status, &body));
+    }
+    let parsed: LogsResponse = serde_json::from_str(&body)?;
+    Ok(parse_last_downloads(&parsed.entries))
+}
+
+fn parse_last_downloads(logs: &str) -> HashMap<String, i64> {
+    let mut result: HashMap<String, i64> = HashMap::new();
+    for line in logs.lines() {
+        let Some((stamp, rest)) = line.split_once("   [download] ") else {
+            continue;
+        };
+        let Ok(date) =
+            chrono::NaiveDateTime::parse_from_str(stamp.trim(), "%a, %d %b %Y %H:%M:%S UTC")
+        else {
+            continue;
+        };
+        let Some(position) = rest.rfind(", ID ") else {
+            continue;
+        };
+        let tail = &rest[position + 5..];
+        let Some(end) = tail.find(',') else {
+            continue;
+        };
+        let id = tail[..end].trim();
+        if id.is_empty() {
+            continue;
+        }
+        let seconds = date.and_utc().timestamp();
+        result
+            .entry(id.to_string())
+            .and_modify(|current| {
+                if seconds > *current {
+                    *current = seconds;
+                }
+            })
+            .or_insert(seconds);
+    }
+    result
 }
 
 #[cfg(test)]
@@ -353,5 +508,30 @@ mod tests {
         assert!(same_origin(&server, &same));
         assert!(!same_origin(&server, &other_host));
         assert!(!same_origin(&server, &other_port));
+    }
+
+    #[test]
+    fn parses_the_last_download_for_each_file() {
+        let logs =
+            "Fri, 27 Nov 2026 10:00:00 UTC   [download] first.zip, ID abc123, Useragent one\n\
+Sat, 28 Nov 2026 09:30:00 UTC   [download] first.zip, ID abc123, Useragent two\n\
+Fri, 27 Nov 2026 12:00:00 UTC   [download] second.zip, ID def456, Useragent three\n\
+Fri, 27 Nov 2026 12:00:00 UTC   [upload] third.zip, ID ghi789, uploaded by someone\n";
+        let parsed = parse_last_downloads(logs);
+        let latest = chrono::NaiveDate::from_ymd_opt(2026, 11, 28)
+            .unwrap()
+            .and_hms_opt(9, 30, 0)
+            .unwrap()
+            .and_utc()
+            .timestamp();
+        let other = chrono::NaiveDate::from_ymd_opt(2026, 11, 27)
+            .unwrap()
+            .and_hms_opt(12, 0, 0)
+            .unwrap()
+            .and_utc()
+            .timestamp();
+        assert_eq!(parsed.get("abc123"), Some(&latest));
+        assert_eq!(parsed.get("def456"), Some(&other));
+        assert!(!parsed.contains_key("ghi789"));
     }
 }

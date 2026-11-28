@@ -29,7 +29,7 @@ Gokapi Desktop creates expiring download links without opening the web interface
 ## Requirements
 
 - Gokapi **2.2 or newer** with the API enabled
-- An API key with the **Upload** permission; add **Delete** to remove files from the app
+- An API key with **Upload** and **View** permissions (View keeps the Sent list in sync with the server); add **Delete** to remove files and **Logs** to show last-download times
 
 End-to-end encrypted uploads (Gokapi encryption level 3) are **not supported** by the API. Use the official [Gokapi CLI](https://github.com/Forceu/Gokapi) for those uploads.
 
@@ -55,6 +55,8 @@ The builds are **not signed** with an OS code-signing certificate:
 - End-to-end encrypted uploads (Gokapi encryption level 3) are not available through the API; use the Gokapi CLI.
 - On Linux, automatic updates work for the AppImage; the `.deb` package is updated manually.
 - On Linux without a Secret Service keyring, the app asks before storing the API key in a `0600` file.
+- The Sent list mirrors the server and refreshes every minute; local-only removal is not available because the server is the source of truth.
+- Last-download times require the **Logs** permission on the API key; without it the app shows the download count only.
 - There is no telemetry, crash reporting or cloud sync.
 
 ## First run

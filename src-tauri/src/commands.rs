@@ -40,6 +40,13 @@ pub struct BulkDeleteResult {
     failed: Vec<String>,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncResult {
+    history: Vec<HistoryEntry>,
+    logs_available: bool,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadJob {
@@ -250,6 +257,19 @@ pub async fn delete_remote_many(
 #[tauri::command]
 pub fn remove_history(state: State<'_, AppState>, ids: Vec<String>) -> Vec<HistoryEntry> {
     state.remove_history(&ids)
+}
+
+#[tauri::command]
+pub async fn sync_history(state: State<'_, AppState>) -> Result<SyncResult, CommandError> {
+    let settings = state.snapshot_settings();
+    let server = gokapi::normalize_server(&settings.server_url)?;
+    let key = credentials::load(&state).ok_or_else(|| CommandError::new("unauthorized"))?;
+    let result = gokapi::list_history(&server, &key).await?;
+    state.replace_history(result.entries.clone());
+    Ok(SyncResult {
+        history: result.entries,
+        logs_available: result.logs_available,
+    })
 }
 
 #[tauri::command]

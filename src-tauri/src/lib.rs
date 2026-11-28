@@ -108,6 +108,7 @@ pub fn run() {
             commands::delete_remote,
             commands::delete_remote_many,
             commands::remove_history,
+            commands::sync_history,
             commands::paste_image,
             commands::prepare_archive,
             commands::open_portal

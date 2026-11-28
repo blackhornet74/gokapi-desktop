@@ -613,6 +613,20 @@ label.check strong {
   align-items: center;
 }
 
+.history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.sync-warning {
+  color: var(--amber);
+  margin: 6px 0 0;
+}
+
 .queue-empty {
   padding: 12px 0 2px;
 }

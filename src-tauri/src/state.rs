@@ -34,6 +34,12 @@ pub struct HistoryEntry {
     pub name: String,
     pub url: String,
     pub time: String,
+    #[serde(default)]
+    pub downloads: i64,
+    #[serde(default)]
+    pub last_download: Option<String>,
+    #[serde(default)]
+    pub expires_at: Option<String>,
 }
 
 pub struct AppState {
@@ -107,6 +113,13 @@ impl AppState {
         }
     }
 
+    pub fn replace_history(&self, entries: Vec<HistoryEntry>) {
+        let mut history = self.history.lock().unwrap();
+        *history = entries;
+        if let Err(error) = write_json(&history_path(&self.data_dir), &*history) {
+            eprintln!("could not persist history: {error}");
+        }
+    }
     pub fn remove_history(&self, ids: &[String]) -> Vec<HistoryEntry> {
         let mut history = self.history.lock().unwrap();
         history.retain(|entry| !ids.iter().any(|id| id == &entry.id));

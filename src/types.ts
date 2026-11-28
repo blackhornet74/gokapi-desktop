@@ -12,6 +12,14 @@ export interface HistoryEntry {
   name: string;
   url: string;
   time: string;
+  downloads?: number;
+  lastDownload?: string | null;
+  expiresAt?: string | null;
+}
+
+export interface SyncResult {
+  history: HistoryEntry[];
+  logsAvailable: boolean;
 }
 
 export interface Bootstrap {
