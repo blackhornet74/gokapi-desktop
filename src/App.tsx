@@ -67,6 +67,7 @@ export default function App() {
   const availableRef = useRef<AvailableUpdate | null>(null);
 
   const language: Language = boot?.settings.language === "it" ? "it" : "en";
+  const refreshSeconds = boot?.settings.refreshSeconds ?? 60;
   const t = useCallback(
     (key: string, values?: Record<string, string | number>) => translate(language, key, values),
     [language],
@@ -126,11 +127,12 @@ export default function App() {
 
   useEffect(() => {
     if (!boot?.keyPresent || !boot.settings.serverUrl || !api.isDesktop) return;
+    if (refreshSeconds <= 0) return;
     const timer = window.setInterval(() => {
       void refreshHistory(false);
-    }, 60_000);
+    }, refreshSeconds * 1000);
     return () => window.clearInterval(timer);
-  }, [boot, refreshHistory]);
+  }, [boot, refreshHistory, refreshSeconds]);
 
   useEffect(() => {
     if (!api.isDesktop) return;

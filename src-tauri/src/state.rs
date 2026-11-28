@@ -14,6 +14,12 @@ pub struct Settings {
     pub days: i64,
     pub downloads: i64,
     pub language: String,
+    #[serde(default = "default_refresh_seconds")]
+    pub refresh_seconds: u32,
+}
+
+fn default_refresh_seconds() -> u32 {
+    60
 }
 
 impl Default for Settings {
@@ -23,6 +29,7 @@ impl Default for Settings {
             days: 5,
             downloads: 0,
             language: "en".to_string(),
+            refresh_seconds: default_refresh_seconds(),
         }
     }
 }

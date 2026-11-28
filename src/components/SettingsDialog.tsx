@@ -23,6 +23,7 @@ export default function SettingsDialog({ boot, t, onClose, onSave }: Props) {
   const [language, setLanguage] = useState<Language>(
     boot.settings.language === "it" ? "it" : "en",
   );
+  const [refreshSeconds, setRefreshSeconds] = useState(boot.settings.refreshSeconds ?? 60);
   const [apiKey, setApiKey] = useState("");
   const [autostart, setAutostart] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -45,6 +46,7 @@ export default function SettingsDialog({ boot, t, onClose, onSave }: Props) {
           days: Math.max(0, days),
           downloads: Math.max(0, downloads),
           language,
+          refreshSeconds,
         },
         apiKey,
         autostart,
@@ -128,6 +130,22 @@ export default function SettingsDialog({ boot, t, onClose, onSave }: Props) {
             <option value="en">English</option>
             <option value="it">Italiano</option>
           </select>
+        </label>
+
+        <label>
+          {t("refreshInterval")}
+          <select
+            value={refreshSeconds}
+            onChange={(event) => setRefreshSeconds(Number(event.target.value) || 0)}
+          >
+            <option value={30}>30 s</option>
+            <option value={60}>1 min</option>
+            <option value={300}>5 min</option>
+            <option value={900}>15 min</option>
+            <option value={1800}>30 min</option>
+            <option value={0}>{t("refreshManual")}</option>
+          </select>
+          <span className="hint">{t("refreshIntervalHint")}</span>
         </label>
 
         <label className="check">

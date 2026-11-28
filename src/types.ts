@@ -5,6 +5,7 @@ export interface Settings {
   days: number;
   downloads: number;
   language: Language;
+  refreshSeconds: number;
 }
 
 export interface HistoryEntry {

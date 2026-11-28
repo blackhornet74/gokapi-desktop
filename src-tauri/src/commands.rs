@@ -64,6 +64,9 @@ fn validated(mut settings: Settings) -> Result<Settings, CommandError> {
     if !(0..=100_000).contains(&settings.days) || !(0..=100_000).contains(&settings.downloads) {
         return Err(CommandError::new("unsupported"));
     }
+    if settings.refresh_seconds != 0 && !(15..=86_400).contains(&settings.refresh_seconds) {
+        return Err(CommandError::new("unsupported"));
+    }
     settings.language = match settings.language.as_str() {
         "it" => "it".to_string(),
         _ => "en".to_string(),

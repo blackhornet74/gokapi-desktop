@@ -48,7 +48,7 @@ export default function Wizard({ initialLanguage, onFinished }: Props) {
     setBusy(true);
     setError(null);
     try {
-      await api.saveSettings({ serverUrl, days, downloads, language });
+      await api.saveSettings({ serverUrl, days, downloads, language, refreshSeconds: 60 });
       try {
         await api.saveApiKey(apiKey.trim(), false);
       } catch (failure) {

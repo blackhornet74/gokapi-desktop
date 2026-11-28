@@ -55,7 +55,7 @@ The builds are **not signed** with an OS code-signing certificate:
 - End-to-end encrypted uploads (Gokapi encryption level 3) are not available through the API; use the Gokapi CLI.
 - On Linux, automatic updates work for the AppImage; the `.deb` package is updated manually.
 - On Linux without a Secret Service keyring, the app asks before storing the API key in a `0600` file.
-- The Sent list mirrors the server and refreshes every minute; local-only removal is not available because the server is the source of truth.
+- The Sent list mirrors the server and refreshes at the interval chosen in Settings (default one minute, manual option available); local-only removal is not available because the server is the source of truth.
 - Last-download times require the **Logs** permission on the API key; without it the app shows the download count only.
 - There is no telemetry, crash reporting or cloud sync.
 

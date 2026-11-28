@@ -21,6 +21,7 @@ let mockSettings: Settings = {
   days: 5,
   downloads: 0,
   language: "en",
+  refreshSeconds: 60,
 };
 
 let mockHistory: HistoryEntry[] = [
