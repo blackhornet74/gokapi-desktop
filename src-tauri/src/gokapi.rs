@@ -348,6 +348,9 @@ struct LogsResponse {
     entries: String,
 }
 
+fn parse_file_list(body: &str) -> Result<Vec<ListedFile>, serde_json::Error> {
+    Ok(serde_json::from_str::<Option<Vec<ListedFile>>>(body)?.unwrap_or_default())
+}
 pub struct ServerHistory {
     pub entries: Vec<HistoryEntry>,
     pub logs_available: bool,
@@ -376,7 +379,7 @@ pub async fn list_history(server: &Url, key: &str) -> Result<ServerHistory, Comm
     if !status.is_success() {
         return Err(map_status(status, &body));
     }
-    let files: Vec<ListedFile> = serde_json::from_str(&body)?;
+    let files = parse_file_list(&body)?;
 
     let (downloads, logs_available) = match fetch_last_downloads(server, key).await {
         Ok(map) => (map, true),
@@ -533,5 +536,11 @@ Fri, 27 Nov 2026 12:00:00 UTC   [upload] third.zip, ID ghi789, uploaded by someo
         assert_eq!(parsed.get("abc123"), Some(&latest));
         assert_eq!(parsed.get("def456"), Some(&other));
         assert!(!parsed.contains_key("ghi789"));
+    }
+
+    #[test]
+    fn treats_a_null_file_list_as_empty() {
+        assert!(parse_file_list("null").unwrap().is_empty());
+        assert!(parse_file_list("[]").unwrap().is_empty());
     }
 }
