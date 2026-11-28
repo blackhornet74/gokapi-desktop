@@ -67,6 +67,8 @@ struct FileInfo {
     upload_date: i64,
     #[serde(rename = "ExpireAt", default)]
     expire_at: i64,
+    #[serde(rename = "UnlimitedTime", default)]
+    unlimited_time: bool,
     #[serde(rename = "DownloadCount", default)]
     download_count: i64,
 }
@@ -294,7 +296,7 @@ pub async fn upload_path(
         }),
         downloads: parsed.file.download_count,
         last_download: None,
-        expires_at: iso_timestamp(parsed.file.expire_at),
+        expires_at: expiry_timestamp(parsed.file.unlimited_time, parsed.file.expire_at),
     })
 }
 
@@ -338,6 +340,8 @@ struct ListedFile {
     upload_date: i64,
     #[serde(rename = "ExpireAt", default)]
     expire_at: i64,
+    #[serde(rename = "UnlimitedTime", default)]
+    unlimited_time: bool,
     #[serde(rename = "DownloadCount", default)]
     downloads: i64,
 }
@@ -356,6 +360,13 @@ pub struct ServerHistory {
     pub logs_available: bool,
 }
 
+fn expiry_timestamp(unlimited: bool, seconds: i64) -> Option<String> {
+    if unlimited {
+        None
+    } else {
+        iso_timestamp(seconds)
+    }
+}
 fn iso_timestamp(seconds: i64) -> Option<String> {
     if seconds <= 0 {
         return None;
@@ -411,7 +422,7 @@ pub async fn list_history(server: &Url, key: &str) -> Result<ServerHistory, Comm
             last_download: downloads
                 .get(&file.id)
                 .and_then(|seconds| iso_timestamp(*seconds)),
-            expires_at: iso_timestamp(file.expire_at),
+            expires_at: expiry_timestamp(file.unlimited_time, file.expire_at),
         });
     }
     entries.sort_by(|left, right| right.time.cmp(&left.time));
@@ -549,5 +560,29 @@ Fri, 27 Nov 2026 12:00:00 UTC   [upload] third.zip, ID ghi789, uploaded by someo
     fn treats_a_null_file_list_as_empty() {
         assert!(parse_file_list("null").unwrap().is_empty());
         assert!(parse_file_list("[]").unwrap().is_empty());
+    }
+
+    #[test]
+    fn ignores_the_expiry_of_files_without_a_time_limit() {
+        assert_eq!(expiry_timestamp(true, 1_800_000_000), None);
+        // Gokapi stores the upload time as ExpireAt for unlimited files, so the
+        // flag must win over the timestamp.
+        assert_eq!(expiry_timestamp(true, 0), None);
+        assert!(expiry_timestamp(false, 1_800_000_000).is_some());
+        assert_eq!(expiry_timestamp(false, 0), None);
+    }
+
+    #[test]
+    fn reads_the_unlimited_time_flag_from_the_file_list() {
+        let files = parse_file_list(
+            r#"[{"Id":"abc123","Name":"never.zip","UrlDownload":"https://files.example.com/d?id=abc123","UploadDate":1795858200,"ExpireAt":1795858200,"UnlimitedTime":true,"DownloadCount":2}]"#,
+        )
+        .unwrap();
+        assert_eq!(files.len(), 1);
+        assert!(files[0].unlimited_time);
+        assert_eq!(
+            expiry_timestamp(files[0].unlimited_time, files[0].expire_at),
+            None
+        );
     }
 }
