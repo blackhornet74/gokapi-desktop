@@ -30,24 +30,28 @@ let mockHistory: HistoryEntry[] = [
     name: "handbook-2026.pdf",
     url: "https://files.example.com/d?id=h1",
     time: new Date(Date.now() - 1000 * 60 * 38).toISOString(),
+    expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
     id: "h2",
     name: "rack-photos.zip",
     url: "https://files.example.com/d?id=h2",
     time: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
+    expiresAt: null,
   },
   {
     id: "h3",
     name: "quarterly-results.xlsx",
     url: "https://files.example.com/d?id=h3",
     time: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
+    expiresAt: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
   },
   {
     id: "h4",
     name: "design-assets.zip",
     url: "https://files.example.com/d?id=h4",
     time: new Date(Date.now() - 1000 * 60 * 60 * 50).toISOString(),
+    expiresAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
   },
 ];
 

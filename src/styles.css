@@ -627,6 +627,14 @@ label.check strong {
   margin: 6px 0 0;
 }
 
+.expiry-soon {
+  color: var(--amber);
+}
+
+.expiry-expired {
+  color: var(--stamp);
+}
+
 .queue-empty {
   padding: 12px 0 2px;
 }

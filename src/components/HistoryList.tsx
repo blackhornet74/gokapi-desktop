@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { pruneSelection, toggleSelection } from "../dedupe";
+import { expiryState } from "../expiry";
 import type { HistoryEntry } from "../types";
 
 interface Props {
@@ -100,6 +101,13 @@ export default function HistoryList({
               : count > 0 && !logsAvailable
                 ? "—"
                 : t("neverDownloaded");
+            const expiry = expiryState(entry.expiresAt);
+            const expiryLabel =
+              expiry === "none"
+                ? t("noExpiry")
+                : t("expires", { time: formatTime(entry.expiresAt ?? "") });
+            const expiryClass =
+              expiry === "soon" ? "expiry-soon" : expiry === "expired" ? "expiry-expired" : "";
             return (
               <li key={entry.id} className={selected.has(entry.id) ? "selected" : ""}>
                 <input
@@ -122,6 +130,7 @@ export default function HistoryList({
                   >
                     <span>{downloadsLabel}</span>
                     <span>{lastLabel}</span>
+                    <span className={expiryClass}>{expiryLabel}</span>
                   </div>
                   <div className="history-actions">
                     <button className="link small" onClick={() => onCopy(entry)}>
